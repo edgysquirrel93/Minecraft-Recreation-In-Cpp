@@ -1,0 +1,12 @@
+# Clion project settings
+.idea/
+# Included libaries
+Include/
+# Build
+cmake-build-debug/
+cmake-build-release/
+build/
+# ImGui ini file
+imgui.ini
+# Fonts - Monocraft, Minecraft Textures, Minecraft Songs
+assets/
