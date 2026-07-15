@@ -1,5 +1,5 @@
-#ifndef MINCRAFT_RECREATION_RECREATION_ENGINE_H
-#define MINCRAFT_RECREATION_RECREATION_ENGINE_H
+#ifndef MINECRAFT_RECREATION_RECREATION_ENGINE_H
+#define MINECRAFT_RECREATION_RECREATION_ENGINE_H
 #include "../config/SettingsManager.h"
 #include "../window/WindowManager.h"
 using namespace engine;

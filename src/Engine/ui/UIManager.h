@@ -1,9 +1,9 @@
-#ifndef MINCRAFT_RECREATION_RECREATION_UIMANAGER_H
-#define MINCRAFT_RECREATION_RECREATION_UIMANAGER_H
+#ifndef MINECRAFT_RECREATION_RECREATION_UIMANAGER_H
+#define MINECRAFT_RECREATION_RECREATION_UIMANAGER_H
 
-#include <GLFW/include/GLFW/glfw3.h>
+#include <GLFW/glfw3.h>
 
-#include "imgui/imgui.h"
+#include "imgui.h"
 
 namespace engine::ui {
 

@@ -1,4 +1,4 @@
-#include "GLAD/include/glad/glad.h"
+#include "glad/gl.h"
 
 #include "WindowManager.h"
 #include <iostream>
@@ -27,7 +27,7 @@ void WindowManager::initWindow() {
 
     glfwMakeContextCurrent(m_Window);
 
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+    if (!gladLoadGL(glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD!" << std::endl;
     }
 }

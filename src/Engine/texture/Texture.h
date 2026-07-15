@@ -1,6 +1,6 @@
-#ifndef MINCRAFT_RECREATION_RECREATION_TEXTURE_H
-#define MINCRAFT_RECREATION_RECREATION_TEXTURE_H
-#include <GLAD/include/glad/glad.h>
+#ifndef MINECRAFT_RECREATION_RECREATION_TEXTURE_H
+#define MINECRAFT_RECREATION_RECREATION_TEXTURE_H
+#include <glad/gl.h>
 #include <iostream>
 
 namespace engine::texture {

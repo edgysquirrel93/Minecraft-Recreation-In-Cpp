@@ -3,13 +3,13 @@
 #include "../texture/Texture.h"
 #include "UIManager.h"
 
-#include <JSONPARSE/json.hpp>
+#include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <IMGUI/backends/imgui_impl_glfw.h>
-#include <IMGUI/backends/imgui_impl_opengl3.h>
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include "../config/SettingsManager.h"
 
@@ -23,7 +23,7 @@ UIManager::~UIManager() {if (s_Instance == this) s_Instance = nullptr;}
 
 void UIManager::drawTextWithShadow(const ImVec2 pos, const char* text, const ImU32 col, const char* textEnd) {
     ImDrawList* drawList {ImGui::GetWindowDrawList()};
-    ImFont* font {ImGui::GetFont()};
+    const ImFont* font {ImGui::GetFont()};
     const float fontSize {ImGui::GetFontSize()};
 
     const ImVec4 c {ImGui::ColorConvertU32ToFloat4(col)};
@@ -68,7 +68,7 @@ bool UIManager::minecraftButton(const char* label, const ImVec2 size, const bool
         textColor = IM_COL32_WHITE;
     }
 
-    drawList->AddImage(currentTexId, bb.Min, bb.Max);
+    drawList->AddImage(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(currentTexId)), bb.Min, bb.Max);
 
     const char* labelEnd {ImGui::FindRenderedTextEnd(label)};
     const ImVec2 textSize {ImGui::CalcTextSize(label, labelEnd)};
@@ -152,8 +152,12 @@ void UIManager::drawMainMenu() {
     ImGui::SetCursorPosX((getIO().DisplaySize.x - logoWidth) * 0.5f);
     ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.0025f);
 
-    ImGui::Image(static_cast<unsigned int>(texture::LoadTexture::ui.logo),
-        ImVec2(logoWidth, logoHeight));
+    const GLuint rawTextureId {texture::LoadTexture::ui.logo};
+
+    ImGui::Image(
+        reinterpret_cast<ImTextureID>(static_cast<intptr_t>(rawTextureId)),
+        ImVec2(logoWidth, logoHeight)
+    );
 
     const float windowWidth {ImGui::GetWindowSize().x};
     constexpr float buttonWidth {600.0f};
@@ -196,7 +200,7 @@ void UIManager::drawBackgroundScreen() {
     const float tileCountX {getIO().DisplaySize.x / 128.0f};
     const float tileCountY {getIO().DisplaySize.y / 128.0f};
 
-    ImGui::Image(static_cast<unsigned int>(texture::LoadTexture::ui.dirt_ui),
+    ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.dirt_ui)),
         ImVec2(getIO().DisplaySize.x + 2.0f, getIO().DisplaySize.y + 2.0f),
         ImVec2(0, 0), ImVec2(tileCountX, tileCountY),
         ImVec4(0.15f, 0.15f, 0.15f, 1.0f), ImVec4(0,0,0,0));
@@ -255,7 +259,7 @@ void UIManager::drawSingleplayerScreen() {
         const float uvV2 {uvV1 + (winSize.y / dirtTileSize)};
         const float uvU2 {winSize.x / dirtTileSize};
 
-        dl->AddImage(static_cast<unsigned int>(texture::LoadTexture::ui.dirt_ui),
+        dl->AddImage(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.dirt_ui)),
                      ImVec2(winPos.x, winPos.y + scrollY),
                      ImVec2(winPos.x + winSize.x, winPos.y + winSize.y + scrollY),
                      ImVec2(0, uvV1), ImVec2(uvU2, uvV2), dirtTint);
@@ -357,7 +361,7 @@ void UIManager::drawSingleplayerScreen() {
         float sbX {(winSize.x / 2 + (winSize.x / 4) + 16)};
         ImDrawList* fg {ImGui::GetForegroundDrawList()};
 
-        fg->AddImage(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background),
+        fg->AddImage(ImTextureID(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background)),
         ImVec2(sbX, winPos.y),
         ImVec2(sbX + sbWidth, winPos.y + winSize.y));
 
@@ -365,7 +369,7 @@ void UIManager::drawSingleplayerScreen() {
         float scrollPct {ImSaturate(scrollY / scrollMax)};
         float thumbY {winPos.y + scrollPct * (winSize.y - thumbHeight)};
 
-        fg->AddImage(static_cast<unsigned int>(texture::LoadTexture::ui.scroller),
+        fg->AddImage(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller)),
         ImVec2(sbX, thumbY),
         ImVec2(sbX + sbWidth, thumbY + thumbHeight));
 
