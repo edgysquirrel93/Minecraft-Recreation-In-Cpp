@@ -32,6 +32,8 @@ class UIManager {
     static void drawMCText(const std::string& text);
     static void drawTextWithShadow(ImVec2 pos, const char* text, ImU32 col = IM_COL32_WHITE, const char* textEnd = nullptr);
     static bool minecraftButton(const char* label, ImVec2 size, bool disabled = false);
+    static bool minecraftSlider(const char* label, char textDisplay[], float* value, float min = 0.0f, float max = 1.0f, bool sameLine = false);
+    static bool minecraftTextInput(const char* label, std::string& inputText, ImVec2 size);
 
     // enum correlating functions
     static void drawMainMenu();

@@ -78,6 +78,183 @@ bool UIManager::minecraftButton(const char* label, const ImVec2 size, const bool
     return pressed;
 }
 
+bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* value, const float min, const float max,
+    const bool sameLine) {
+    ImGuiWindow* window {ImGui::GetCurrentWindow()};
+    if (window->SkipItems) return false;
+
+    ImGuiContext& g {*GImGui};
+    const ImGuiID id {window->GetID(label)};
+
+    constexpr ImVec2 size(400, 45);
+    const ImVec2 pos {window->DC.CursorPos};
+    const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
+    ImGui::ItemSize(bb);
+    if (!ImGui::ItemAdd(bb, id)) return false;
+
+    const float old_value = *value;
+
+    static std::unordered_map<ImGuiID, float> smoothValues;
+    static std::unordered_map<ImGuiID, bool> smoothInit;
+
+    if (!smoothInit.contains(id))
+    {
+        smoothValues[id] = *value;
+        smoothInit[id] = true;
+    }
+    float& smooth {smoothValues[id]};
+
+    constexpr float thumbWidth {20.0f};
+    const float trackUsable {bb.GetWidth() - thumbWidth};
+    const float trackStartX {bb.Min.x + thumbWidth * 0.5f};
+
+    auto getMouseX = [&]() -> float {
+        double mx, my;
+        glfwGetCursorPos(s_GlfwWindow, &mx, &my);
+        return static_cast<float>(mx);
+    };
+
+    auto mousePosToValue = [&]() -> float {
+        const float mx {getMouseX()};
+        float t {(mx - trackStartX) / trackUsable};
+        t = ImClamp(t, 0.0f, 1.0f);
+        return min + t * (max - min);
+    };
+
+    const bool hovered {ImGui::IsMouseHoveringRect(bb.Min, bb.Max)};
+
+    if (hovered && ImGui::IsMouseClicked(0))
+    {
+        if (g.ActiveId == 0 || g.ActiveId == id)
+        {
+            ImGui::SetActiveID(id, window);
+            ImGui::SetFocusID(id, window);
+            ImGui::FocusWindow(window);
+            g.ActiveIdMouseButton = 0;
+            *value = mousePosToValue();
+        }
+    }
+
+    if (g.ActiveId == id)
+    {
+        ImGui::KeepAliveID(id);
+        g.ActiveIdMouseButton = 0;
+
+        if (ImGui::IsMouseDown(0))
+        {
+            *value = mousePosToValue();
+        }
+        else
+        {
+            ImGui::ClearActiveID();
+            // ma_sound_seek_to_pcm_frame(&clickSound, 0);
+            // ma_sound_start(&clickSound);
+        }
+    }
+
+    const bool value_changed {(*value != old_value)};
+    const bool is_active {(g.ActiveId == id)};
+
+    smooth = *value;
+
+    ImDrawList* drawList {ImGui::GetWindowDrawList()};
+
+    unsigned const int trackTexHi {texture::LoadTexture::ui.slider_highlighted},
+    trackTex {texture::LoadTexture::ui.slider},
+    thumbTexHi {texture::LoadTexture::ui.slider_handle_highlighted},
+    thumbTex {texture::LoadTexture::ui.slider_handle};
+
+    const unsigned int currentTrack {(hovered || is_active) ? trackTexHi : trackTex};
+    drawList->AddImage(reinterpret_cast<void*>(static_cast<intptr_t>(currentTrack)), bb.Min, bb.Max);
+
+    const float percentage {ImClamp((smooth - min) / (max - min), 0.0f, 1.0f)};
+    const float thumbCenterX {trackStartX + percentage * trackUsable};
+    const float thumbPosX {thumbCenterX - thumbWidth * 0.5f};
+
+    const ImVec2 t_min(thumbPosX, bb.Min.y);
+    const ImVec2 t_max(thumbPosX + thumbWidth, bb.Max.y);
+
+    const bool thumbHovered {ImGui::IsMouseHoveringRect(t_min, t_max)};
+    const unsigned int currentThumb {(is_active || thumbHovered) ? thumbTexHi : thumbTex};
+    drawList->AddImage(reinterpret_cast<void*>(static_cast<intptr_t>(currentThumb)), t_min, t_max);
+
+    const ImVec2 textSize = ImGui::CalcTextSize(textDisplay);
+    const ImVec2 textPos(
+        bb.Min.x + (bb.GetWidth() - textSize.x) * 0.5f,
+        bb.Min.y + (bb.GetHeight() - textSize.y) * 0.5f
+    );
+
+    drawTextWithShadow(textPos, textDisplay);
+
+    if (sameLine)
+        ImGui::SameLine();
+
+    return value_changed;
+}
+
+bool UIManager::minecraftTextInput(const char* label, std::string& inputText, const ImVec2 size) {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return false;
+
+    ImGuiContext& g {*GImGui};
+    const ImGuiID id {window->GetID(label)};
+
+    const ImVec2 pos {window->DC.CursorPos};
+    const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
+    ImGui::ItemSize(bb);
+    if (!ImGui::ItemAdd(bb, id)) return false;
+
+    const bool hovered {ImGui::IsMouseHoveringRect(bb.Min, bb.Max)};
+    const bool focused {(g.ActiveId == id)};
+
+    if (hovered && ImGui::IsMouseClicked(0))
+    {
+        ImGui::SetActiveID(id, window);
+        ImGui::SetFocusID(id, window);
+        ImGui::FocusWindow(window);
+    }
+
+    // Handle keyboard input when focused
+    if (focused)
+    {
+        // Handle backspace
+        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !inputText.empty())
+            inputText.pop_back();
+
+        // Handle regular character input
+        for (const ImWchar c : g.IO.InputQueueCharacters)
+        {
+            if (constexpr int maxChars {32}; c >= 32 && inputText.length() < maxChars)
+                inputText += static_cast<char>(c);
+        }
+    }
+
+    if (!hovered && ImGui::IsMouseClicked(0))
+    {
+        if (g.ActiveId == id)
+            ImGui::ClearActiveID();
+    }
+
+    // Render
+    ImDrawList* drawList {ImGui::GetWindowDrawList()};
+    unsigned const int texHighlighted {texture::LoadTexture::ui.text_field_highlighted},
+    texNormal {texture::LoadTexture::ui.text_field};
+    const unsigned int currentTex {(hovered || focused) ? texHighlighted : texNormal};
+    drawList->AddImage(reinterpret_cast<void*>(static_cast<intptr_t>(currentTex)), bb.Min, bb.Max);
+
+    // Draw text
+    std::string displayText {inputText};
+    if (focused && static_cast<int>(ImGui::GetTime() * 2) % 2 == 0)
+        displayText += "_";
+
+    const ImVec2 textPos(bb.Min.x + 10.0f, bb.Min.y + (bb.GetHeight() - 32.0f) * 0.5f);
+    drawTextWithShadow(textPos, displayText.c_str());
+
+    return focused;
+}
+
 void UIManager::init(GLFWwindow* window) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -288,6 +465,7 @@ void UIManager::drawSingleplayerScreen() {
                     worldTime = data.value("lastPlayed", "(New World)");
 
                 } catch (...) {
+                    // if getting the values fails
                     worldGameMode = "Unknown Mode";
                     worldTime = "(Broken Save)";
                 }
@@ -361,7 +539,7 @@ void UIManager::drawSingleplayerScreen() {
         float sbX {(winSize.x / 2 + (winSize.x / 4) + 16)};
         ImDrawList* fg {ImGui::GetForegroundDrawList()};
 
-        fg->AddImage(ImTextureID(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background)),
+        fg->AddImage(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background)),
         ImVec2(sbX, winPos.y),
         ImVec2(sbX + sbWidth, winPos.y + winSize.y));
 

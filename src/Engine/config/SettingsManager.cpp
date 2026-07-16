@@ -52,13 +52,34 @@ void SettingsManager::save() {
 }
 
 fs::path SettingsManager::getSaveDirectory() {
-    const char* localAppDataPath {std::getenv("LOCALAPPDATA")};
-
-    if (!localAppDataPath) {
-        return fs::current_path();
+    fs::path baseDir;
+#if defined(_WIN32)
+    // Windows
+    if (const char* localAppDataPath {std::getenv("LOCALAPPDATA")}) {
+        baseDir = fs::path(localAppDataPath);
+    } else {
+        baseDir = fs::current_path();
     }
+#elif defined(__linux__)
+    // Linux
+    const char* xdgDataPath = std::getenv("XDG_DATA_HOME");
 
-    fs::path saveDir {fs::path(localAppDataPath) / "Alex's_Minecraft_Recreation" / "Minecraft_Recreation"};
+    if (xdgDataPath && xdgDataPath[0] != '\0') {
+        baseDir = fs::path(xdgDataPath);
+    } else {
+        const char* homePath = std::getenv("HOME");
+        if (homePath) {
+            baseDir = fs::path(homePath) / ".local" / "share";
+        } else {
+            baseDir = fs::current_path();
+        }
+    }
+#else
+    // Other weird Os' (like Mac)
+    baseDir = fs::current_path();
+#endif
+
+    fs::path saveDir {baseDir / "Alex's_Minecraft_Recreation" / "Minecraft_Recreation"};
 
     if (!fs::exists(saveDir)) {
         fs::create_directories(saveDir);
