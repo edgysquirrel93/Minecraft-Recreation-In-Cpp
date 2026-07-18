@@ -9,6 +9,8 @@ namespace fs = std::filesystem;
 
 namespace engine::config {
 
+    SettingsManager* SettingsManager::s_Instance = nullptr;
+
 void SettingsManager::load() {
     if (!fs::exists(m_Filename)) {
         save();
@@ -79,7 +81,7 @@ fs::path SettingsManager::getSaveDirectory() {
     baseDir = fs::current_path();
 #endif
 
-    fs::path saveDir {baseDir / "Alex's_Minecraft_Recreation" / "Minecraft_Recreation"};
+    fs::path saveDir {baseDir / "Alex's_Minecraft_Recreation"};
 
     if (!fs::exists(saveDir)) {
         fs::create_directories(saveDir);

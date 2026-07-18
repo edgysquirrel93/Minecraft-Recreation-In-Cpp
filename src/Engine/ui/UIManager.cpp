@@ -48,8 +48,7 @@ bool UIManager::minecraftButton(const char* label, const ImVec2 size, const bool
     if (!disabled) {
         pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held);
         if (pressed) {
-            // ma_sound_seek_to_pcm_frame(&clickSound, 0);
-            // ma_sound_start(&clickSound);
+            sound::Sound::get().playClickSound();
         }
     }
 
@@ -78,8 +77,7 @@ bool UIManager::minecraftButton(const char* label, const ImVec2 size, const bool
     return pressed;
 }
 
-bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* value, const float min, const float max,
-    const bool sameLine) {
+bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* value, const float min, const float max) {
     ImGuiWindow* window {ImGui::GetCurrentWindow()};
     if (window->SkipItems) return false;
 
@@ -148,8 +146,7 @@ bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* va
         else
         {
             ImGui::ClearActiveID();
-            // ma_sound_seek_to_pcm_frame(&clickSound, 0);
-            // ma_sound_start(&clickSound);
+            sound::Sound::get().playClickSound();
         }
     }
 
@@ -186,9 +183,6 @@ bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* va
     );
 
     drawTextWithShadow(textPos, textDisplay);
-
-    if (sameLine)
-        ImGui::SameLine();
 
     return value_changed;
 }
@@ -260,9 +254,6 @@ void UIManager::init(GLFWwindow* window) {
     ImGui::CreateContext();
     const ImGuiIO& io {ImGui::GetIO()};
 
-    // ma_sound_group_init(&engine, 0, NULL, &groupSFX);
-    // ma_sound_init_from_file(&engine, "Sounds/SoundEffects/Click.wav", MA_SOUND_FLAG_DECODE, &groupSFX, nullptr, &clickSound);
-
     s_GlfwWindow = window;
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -284,6 +275,7 @@ void UIManager::update() {
 
     switch (s_CurrentScreen) {
         case ScreenState::MainMenu:
+            sound::Sound::get().playPlaylist("menu");
             drawMainMenu();
             drawBackgroundScreen();
             break;
@@ -291,9 +283,12 @@ void UIManager::update() {
             drawSingleplayerScreen();
             drawBackgroundScreen();
             break;
+        case ScreenState::OptionsScreen:
+            drawOptionsScreen();
+            drawBackgroundScreen();
+            break;
         case ScreenState::InGame:
         case ScreenState::InMenu:
-        case ScreenState::OptionsScreen:
         case ScreenState::BackgroundScreen:
             break;
     }
@@ -347,7 +342,7 @@ void UIManager::drawMainMenu() {
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     if (minecraftButton("Options", ImVec2(buttonWidth, 50))) {
-        // currentScreen = ScreenState::OptionsScreen;
+        s_CurrentScreen = ScreenState::OptionsScreen;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
@@ -632,6 +627,143 @@ void UIManager::drawSingleplayerScreen() {
     ImGui::PopFont();
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
+    ImGui::End();
+}
+void UIManager::drawOptionsScreen()
+{
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(getIO().DisplaySize, ImGuiCond_Always);
+    ImGui::Begin("OptionsScreen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
+
+    ImGui::PushFont(s_McFont);
+
+    const float windowWidth {ImGui::GetWindowSize().x};
+    const float center {windowWidth * 0.5f};
+    constexpr float buttonWidth {400.0f};
+    constexpr float spacing {10.0f};
+
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.4f);
+    constexpr auto optTitle {"Options"};
+    ImGui::SetCursorPosX(center - (ImGui::CalcTextSize(optTitle).x * 0.5f));
+    drawMCText(optTitle);
+
+    char musicDisplay[64];
+    sprintf(musicDisplay, "Music: %.0f%%", config::SettingsManager::get().getMusicVolume());
+
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.45f);
+    ImGui::SetCursorPosX(center - buttonWidth - spacing);
+
+    float musicVolume {config::SettingsManager::get().getMusicVolume()};
+
+    if (constexpr auto* musicLabel {"##music"}; minecraftSlider(musicLabel, musicDisplay,
+        &musicVolume, 0.0f, 100.0f)) {
+        config::SettingsManager::get().setMusicVolume(musicVolume);
+
+        const float volumeNormalized {musicVolume / 100.0f};
+
+        ma_sound_group_set_volume(sound::Sound::get().getMusicGroup(), volumeNormalized);
+    }
+
+    char soundDisplay[64];
+    sprintf(soundDisplay, "Sound: %.0f%%", config::SettingsManager::get().getSoundEffects());
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(center + spacing);
+
+    float soundVolume {config::SettingsManager::get().getSoundEffects()};
+
+    if (constexpr auto* soundLabel {"##sound"}; minecraftSlider(soundLabel, soundDisplay,
+        &soundVolume, 0.0f, 100.0f)) {
+        config::SettingsManager::get().setSoundEffects(soundVolume);
+
+        const float volumeNormalized {soundVolume / 100.0f};
+
+        ma_sound_group_set_volume(sound::Sound::get().getSFXGroup(), volumeNormalized);
+        }
+
+    float baseFov = config::SettingsManager::get().getBaseFov();
+
+    char fovDisplay[64];
+    if (baseFov >= 109.9f) sprintf(fovDisplay, "FOV: Quake Pro");
+    else if (baseFov <= 30.1f) sprintf(fovDisplay, "FOV: Cinematic");
+    else if (baseFov >= 69.5f && baseFov <= 70.5f) sprintf(fovDisplay, "FOV: Normal");
+    else sprintf(fovDisplay, "FOV: %.0f", baseFov);
+
+    ImGui::SetCursorPosX(center - buttonWidth - spacing);
+
+    if (constexpr auto fovLabel {"##fov"};
+        minecraftSlider(fovLabel, fovDisplay, &baseFov, 30.0f, 110.0f))
+        config::SettingsManager::get().setBaseFov(baseFov);
+
+    float sensitivity {config::SettingsManager::get().getSensitivity()};
+
+    char sensDisplay[64];
+    const float displayPercentage {(sensitivity / 2.0f) * 100.0f};
+
+    if (sensitivity <= 0.011f) sprintf(sensDisplay, "Sensitivity: *yawn*");
+    else if (sensitivity >= 3.99f) sprintf(sensDisplay, "Sensitivity: HYPERSPEED");
+    else sprintf(sensDisplay, "Sensitivity: %.0f%%", displayPercentage);
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(center + spacing);
+
+    if (constexpr auto sensLabel {"##sens"};
+        minecraftSlider(sensLabel, sensDisplay, &sensitivity, 0.01f, 4.0f))
+        config::SettingsManager::get().setSensitivity(sensitivity);
+
+    ImGui::SetCursorPosX(center + spacing);
+
+    char renderDisDisplay[64];
+
+    int renderDistance {config::SettingsManager::get().getRenderDistance()};
+
+    renderDistance = renderDistance / 2 * 2;
+
+    snprintf(renderDisDisplay, sizeof(renderDisDisplay), "Render Distance: %.0d", renderDistance);
+
+    float tempRenderDist {static_cast<float>(renderDistance)};
+
+    if (constexpr auto renderDistanceDisplay = "##renderDistance";
+    minecraftSlider(renderDistanceDisplay, renderDisDisplay, &tempRenderDist, 2.0f, 24.0f)) {
+        renderDistance = static_cast<int>(tempRenderDist);
+        config::SettingsManager::get().setRenderDistance(renderDistance);
+    }
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(center - buttonWidth - spacing);
+
+    bool fullscreenBool {config::SettingsManager::get().getFullscreenBool()};
+    std::string fullscreenLabel;
+
+    if (fullscreenBool == false)
+        fullscreenLabel = "OFF";
+    else
+        fullscreenLabel = "ON";
+
+    if (fullscreenBool == false && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(400, 45))) {
+        fullscreenLabel = "ON";
+        fullscreenBool = true;
+        config::SettingsManager::get().setFullscreenBool(fullscreenBool);
+    }
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(center - buttonWidth - spacing);
+
+    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(400, 45))) {
+        fullscreenLabel = "OFF";
+        fullscreenBool = false;
+        config::SettingsManager::get().setFullscreenBool(fullscreenBool);
+    }
+
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.65f);
+    ImGui::SetCursorPosX(center - 200.0f);
+
+    if (minecraftButton("Done", ImVec2(400, 45))) {
+        config::SettingsManager::get().save();
+        s_CurrentScreen = ScreenState::SingleplayerScreen;
+    }
+
+    ImGui::PopFont();
     ImGui::End();
 }
 

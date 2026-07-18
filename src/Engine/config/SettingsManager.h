@@ -8,6 +8,7 @@
 namespace engine::config {
 
 class SettingsManager {
+    static SettingsManager* s_Instance;
     std::string m_Filename;
     float m_Sensitivity {};
     float m_SoundEffects {};
@@ -17,7 +18,12 @@ class SettingsManager {
     bool m_FullscreenBool {};
 public:
     explicit SettingsManager(const std::string& path)
-        : m_Filename((getSaveDirectory() / path).string()) {}
+        : m_Filename((getSaveDirectory() / path).string()) { s_Instance = this; }
+
+    ~SettingsManager() = default;
+
+    static SettingsManager& get() {return *s_Instance;}
+
     static std::filesystem::path getSaveDirectory();
 
     void load();

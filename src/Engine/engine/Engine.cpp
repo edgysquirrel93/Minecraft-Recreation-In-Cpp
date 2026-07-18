@@ -9,18 +9,30 @@ namespace engine {
     void Engine::initSystems() {
         m_Settings.load();
         m_WindowInstance.initWindow();
+        m_Sound.init();
         texture::LoadTexture::loadAllTextures();
         ui::UIManager::init(m_WindowInstance.getWindow());
+        m_LastFrameTime = std::chrono::steady_clock::now();
     }
 
-    void Engine::gameLoop() const {
+    void Engine::gameLoop()
+    {
         GLFWwindow* window = m_WindowInstance.getWindow();
 
-        while (!glfwWindowShouldClose(window)) {
+        while (!glfwWindowShouldClose(window))
+        {
             glfwPollEvents();
+
+            auto currentFrameTime = std::chrono::steady_clock::now();
+
+            const float deltaTime = std::chrono::duration<float>(currentFrameTime - m_LastFrameTime).count();
+
+            m_LastFrameTime = currentFrameTime;
 
             ui::UIManager::update();
             ui::UIManager::render();
+
+            sound::Sound::get().update(deltaTime);
 
             glfwSwapBuffers(window);
         }
@@ -28,6 +40,7 @@ namespace engine {
 
     void Engine::shutdownSystems() {
         ui::UIManager::shutdown();
+        sound::Sound::get().shutdown();
     }
 
     void Engine::run() {

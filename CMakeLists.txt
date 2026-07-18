@@ -6,7 +6,7 @@ project(Minecraft_Recreation_Recreation)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.1/assets.zip")
+set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.2/assets.zip")
 set(ASSET_ZIP_PATH "${CMAKE_BINARY_DIR}/assets.zip")
 set(ASSET_EXTRACT_DIR "${CMAKE_BINARY_DIR}/assets")
 
@@ -133,6 +133,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+FetchContent_Declare(
+        mini_audio
+        GIT_REPOSITORY https://github.com/mackron/miniaudio
+        GIT_TAG        master
+        GIT_SHALLOW    ON
+)
+FetchContent_MakeAvailable(mini_audio)
+
+if(LINUX OR UNIX)
+    target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
+            asound
+            pulse
+            pthread
+            dl
+            m
+    )
+endif()
+
 target_link_libraries(imgui_lib PRIVATE glfw my_glad)
 
 target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
@@ -145,8 +163,10 @@ target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
 )
 
 target_include_directories(Minecraft_Recreation_Recreation PRIVATE
+        src
         ${glfw_SOURCE_DIR}/include
         ${glad_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
+        ${mini_audio_SOURCE_DIR}
 )
