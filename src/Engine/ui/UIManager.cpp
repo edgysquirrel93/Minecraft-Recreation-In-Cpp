@@ -275,7 +275,6 @@ void UIManager::update() {
 
     switch (s_CurrentScreen) {
         case ScreenState::MainMenu:
-            sound::Sound::get().playPlaylist("menu");
             drawMainMenu();
             drawBackgroundScreen();
             break;
@@ -760,7 +759,7 @@ void UIManager::drawOptionsScreen()
 
     if (minecraftButton("Done", ImVec2(400, 45))) {
         config::SettingsManager::get().save();
-        s_CurrentScreen = ScreenState::SingleplayerScreen;
+        s_CurrentScreen = ScreenState::MainMenu;
     }
 
     ImGui::PopFont();

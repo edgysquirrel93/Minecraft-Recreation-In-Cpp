@@ -23,6 +23,8 @@ namespace engine {
         {
             glfwPollEvents();
 
+            m_WindowInstance.checkWindowState();
+
             auto currentFrameTime = std::chrono::steady_clock::now();
 
             const float deltaTime = std::chrono::duration<float>(currentFrameTime - m_LastFrameTime).count();

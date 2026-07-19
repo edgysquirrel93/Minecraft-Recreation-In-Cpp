@@ -121,6 +121,11 @@ void Sound::init() {
     ma_sound_init_from_file(&m_AudioEngine, "assets/Sound/SoundEffects/click.wav", MA_SOUND_FLAG_DECODE,
         &m_SFXGroup, nullptr, &m_ClickSound);
 
+    if (config::SettingsManager::get().getMusicVolume() <= 0)
+        ma_sound_group_set_volume(&m_MusicGroup, 0);
+    else if (config::SettingsManager::get().getSoundEffects() <= 0)
+        ma_sound_group_set_volume(&m_SFXGroup, 0);
+
     playlistGen();
 
     const std::filesystem::path playlistPath = config::SettingsManager::getSaveDirectory() / "playlist.json";
@@ -131,6 +136,9 @@ void Sound::init() {
             m_Playlists[category] = paths.get<std::vector<std::string>>();
         }
     }
+
+    playPlaylist("menu");
+
 }
 
 void Sound::playPlaylist(const std::string& playlist) {

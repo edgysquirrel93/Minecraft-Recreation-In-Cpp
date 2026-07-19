@@ -7,9 +7,11 @@ namespace engine::window {
 
 class WindowManager {
     GLFWwindow* m_Window {nullptr};
+    bool m_LastFullscreenState {};
 public:
     [[nodiscard]] GLFWwindow* getWindow() const {return m_Window;}
     void initWindow();
+    void checkWindowState();
 };
 
 } // namespace::window

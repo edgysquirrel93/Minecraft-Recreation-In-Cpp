@@ -3,6 +3,8 @@
 #include "WindowManager.h"
 #include <iostream>
 
+#include "Engine/config/SettingsManager.h"
+
 namespace engine::window {
 
 void WindowManager::initWindow() {
@@ -13,7 +15,6 @@ void WindowManager::initWindow() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWmonitor* monitor {glfwGetPrimaryMonitor()};
-    // const GLFWvidmode* mode {glfwGetVideoMode(monitor)};
 
     int monitorX, monitorY, monitorWidth, monitorHeight;
     glfwGetMonitorWorkarea(monitor, &monitorX, &monitorY, &monitorWidth, &monitorHeight);
@@ -29,6 +30,26 @@ void WindowManager::initWindow() {
 
     if (!gladLoadGL(glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD!" << std::endl;
+    }
+}
+
+// Fullscreening
+void WindowManager::checkWindowState() {
+    GLFWmonitor* monitor {glfwGetPrimaryMonitor()};
+    const GLFWvidmode* mode {glfwGetVideoMode(monitor)};
+
+    if (config::SettingsManager::get().getFullscreenBool() == m_LastFullscreenState) return;
+
+    int monitorX, monitorY, monitorWidth, monitorHeight;
+    glfwGetMonitorWorkarea(monitor, &monitorX, &monitorY, &monitorWidth, &monitorHeight);
+    if (config::SettingsManager::get().getFullscreenBool() != m_LastFullscreenState) {
+        if (config::SettingsManager::get().getFullscreenBool()) {
+            glfwSetWindowMonitor(m_Window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        } else {
+            glfwSetWindowMonitor(m_Window, nullptr, monitorX, monitorY, monitorWidth, monitorHeight, 0);
+            glfwMaximizeWindow(m_Window);
+        }
+        m_LastFullscreenState = config::SettingsManager::get().getFullscreenBool();
     }
 }
 
