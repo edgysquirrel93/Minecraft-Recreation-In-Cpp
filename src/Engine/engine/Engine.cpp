@@ -23,18 +23,18 @@ namespace engine {
         {
             glfwPollEvents();
 
-            m_WindowInstance.checkWindowState();
-
             auto currentFrameTime = std::chrono::steady_clock::now();
 
             const float deltaTime = std::chrono::duration<float>(currentFrameTime - m_LastFrameTime).count();
 
             m_LastFrameTime = currentFrameTime;
 
+            sound::Sound::get().update(deltaTime);
+
             ui::UIManager::update();
             ui::UIManager::render();
 
-            sound::Sound::get().update(deltaTime);
+            m_WindowInstance.checkWindowState();
 
             glfwSwapBuffers(window);
         }

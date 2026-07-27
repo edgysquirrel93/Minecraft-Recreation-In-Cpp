@@ -45,6 +45,8 @@ public:
 };
 
 class LevelData {
+    static LevelData* s_Instance;
+
     long long m_Seed = 0;
     std::string m_CurrentWorldName;
     glm::vec3 m_CameraPos{0.0f, 0.0f, 0.0f};
@@ -54,6 +56,8 @@ class LevelData {
 public:
     explicit LevelData(std::string worldName) : m_CurrentWorldName(std::move(worldName)) {}
 
+    static LevelData& get() {return *s_Instance;}
+
     void loadLevel();
     void saveLevel();
     static std::string saveTime();
@@ -62,6 +66,8 @@ public:
     void setSeed(const long long s) { m_Seed = s; }
     [[nodiscard]] std::string getCurrentWorldName() const { return m_CurrentWorldName; }
     void setCurrentWorldName(const std::string& name) { m_CurrentWorldName = name; }
+    [[nodiscard]] bool getCreativeModeBool() const { return m_CreativeMode; }
+    void setCreativeModeBool(const bool f) {m_CreativeMode = f;}
 };
 
 } // engine::config

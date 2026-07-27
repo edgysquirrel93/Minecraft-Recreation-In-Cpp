@@ -10,6 +10,7 @@ namespace fs = std::filesystem;
 namespace engine::config {
 
     SettingsManager* SettingsManager::s_Instance = nullptr;
+    LevelData* LevelData::s_Instance = nullptr;
 
 void SettingsManager::load() {
     if (!fs::exists(m_Filename)) {

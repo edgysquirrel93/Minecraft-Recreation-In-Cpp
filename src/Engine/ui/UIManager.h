@@ -4,7 +4,6 @@
 #include <GLFW/glfw3.h>
 
 #include "imgui.h"
-#include "miniaudio.h"
 #include "Engine/sound/Sound.h"
 
 namespace engine::ui {
@@ -15,7 +14,10 @@ enum class ScreenState {
     InMenu,
     InGame,
     SingleplayerScreen,
-    OptionsScreen
+    OptionsScreen,
+    DeleteWorldScreen,
+    RenameWorldScreen,
+    CreateNewWorldScreen
 };
 
 class UIManager {
@@ -25,7 +27,10 @@ class UIManager {
     inline static GLFWwindow* s_GlfwWindow {nullptr};
 
     inline static auto s_CurrentScreen{ScreenState::MainMenu};
-    bool m_SeedInput {false};
+    inline static std::string m_SelectedWorld;
+    inline static bool m_RenameInitReq;
+    inline static std::string m_SeedStringInput;
+    inline static bool m_SeedInput {false};
 
     // private functions
     static ImGuiIO& getIO() {return ImGui::GetIO();}
@@ -42,6 +47,9 @@ class UIManager {
     static void drawBackgroundScreen();
     static void drawSingleplayerScreen();
     static void drawOptionsScreen();
+    static void drawDeleteWorldScreen();
+    static void drawRenameWorldScreen();
+    static void drawCreateNewWorldScreen();
 
     public:
     UIManager();
@@ -55,8 +63,8 @@ class UIManager {
     static void shutdown();
 
     // setters/getters
-    [[nodiscard]] bool getSeedInput() const {return m_SeedInput;}
-    void setSeedInput(const bool s) {m_SeedInput = s;}
+    static bool getSeedInput() {return m_SeedInput;}
+    static void setSeedInput(const bool s) {m_SeedInput = s;}
 };
 
 } // engine::ui
