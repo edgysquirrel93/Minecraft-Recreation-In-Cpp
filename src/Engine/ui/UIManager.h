@@ -17,7 +17,8 @@ enum class ScreenState {
     OptionsScreen,
     DeleteWorldScreen,
     RenameWorldScreen,
-    CreateNewWorldScreen
+    CreateNewWorldScreen,
+    MoreWorldOptionsScreen
 };
 
 class UIManager {
@@ -50,6 +51,7 @@ class UIManager {
     static void drawDeleteWorldScreen();
     static void drawRenameWorldScreen();
     static void drawCreateNewWorldScreen();
+    static void drawMoreWorldOptionsScreen();
 
     public:
     UIManager();

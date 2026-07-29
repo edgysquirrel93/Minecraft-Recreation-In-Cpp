@@ -10,7 +10,6 @@ namespace fs = std::filesystem;
 namespace engine::config {
 
     SettingsManager* SettingsManager::s_Instance = nullptr;
-    LevelData* LevelData::s_Instance = nullptr;
 
 void SettingsManager::load() {
     if (!fs::exists(m_Filename)) {
@@ -109,6 +108,12 @@ void LevelData::saveLevel() {
 
     fs::create_directories(SettingsManager::getSaveDirectory() / "saves" / m_CurrentWorldName);
 
+    // if (!fs::exists(levelFilename)) {
+    //     if (!ui::UIManager::getSeedInput()) {
+    //         m_Seed = generateSeed();
+    //     }
+    // }
+
     json data;
     data["seed"] = m_Seed;
     data["playerX"] = m_CameraPos.x;
@@ -130,7 +135,7 @@ void LevelData::loadLevel() {
         "level.json").string()};
 
     if (!fs::exists(levelFilename)) {
-        if (!ui::UIManager::get().getSeedInput()) {
+        if (!ui::UIManager::getSeedInput()) {
             m_Seed = generateSeed();
         }
         saveLevel();

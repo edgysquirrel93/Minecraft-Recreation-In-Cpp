@@ -84,7 +84,7 @@ bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* va
     ImGuiContext& g {*GImGui};
     const ImGuiID id {window->GetID(label)};
 
-    constexpr ImVec2 size(400, 45);
+    constexpr ImVec2 size(500, 55);
     const ImVec2 pos {window->DC.CursorPos};
     const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
 
@@ -298,6 +298,10 @@ void UIManager::update() {
             drawCreateNewWorldScreen();
             drawBackgroundScreen();
             break;
+        case ScreenState::MoreWorldOptionsScreen:
+            drawMoreWorldOptionsScreen();
+            drawBackgroundScreen();
+            break;
         case ScreenState::InGame:
         case ScreenState::InMenu:
         case ScreenState::BackgroundScreen:
@@ -347,17 +351,17 @@ void UIManager::drawMainMenu() {
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.5f);
 
-    if (minecraftButton("Singleplayer", ImVec2(buttonWidth, 50))) {
+    if (minecraftButton("Singleplayer", ImVec2(buttonWidth, 55))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
-    if (minecraftButton("Options", ImVec2(buttonWidth, 50))) {
+    if (minecraftButton("Options", ImVec2(buttonWidth, 55))) {
         s_CurrentScreen = ScreenState::OptionsScreen;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
-    if (minecraftButton("Quit Game", ImVec2(buttonWidth, 50))) {
+    if (minecraftButton("Quit Game", ImVec2(buttonWidth, 55))) {
         glfwSetWindowShouldClose(s_GlfwWindow, true);
     }
 
@@ -403,10 +407,12 @@ void UIManager::drawSingleplayerScreen() {
     const float windowWidth {ImGui::GetWindowSize().x};
     const float windowHeight {ImGui::GetWindowSize().y};
 
+    ImGui::SetWindowFontScale(1.2f);
     const auto title {"Select World"};
-    ImGui::SetCursorPosY(windowHeight * 0.05f);
+    ImGui::SetCursorPosY(windowHeight * 0.07f);
     ImGui::SetCursorPosX((windowWidth - ImGui::CalcTextSize(title).x) * 0.5f);
     drawMCText(title);
+    ImGui::SetWindowFontScale(1.0f);
 
     ImGui::SetCursorPosY(windowHeight * 0.15f);
     ImGui::SetCursorPosX(0);
@@ -423,14 +429,14 @@ void UIManager::drawSingleplayerScreen() {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.5f));
     ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0);
 
-    float scrollY, scrollMax;
+    float scrollY {}, scrollMax {};
     ImVec2 winPos, winSize;
-    scrollMax = {ImGui::GetScrollMaxY()};
 
     if (ImGui::BeginChild("WorldList", ImVec2(windowWidth, windowHeight * 0.6f), true, ImGuiWindowFlags_NoScrollbar)) {
         winPos = ImGui::GetWindowPos();
         winSize = ImGui::GetWindowSize();
         scrollY = {ImGui::GetScrollY()};
+        scrollMax = {ImGui::GetScrollMaxY()};
         ImDrawList* dl {ImGui::GetWindowDrawList()};
         static std::vector<std::string> worldNames;
         static float lastWorldListRefresh {};
@@ -549,34 +555,38 @@ void UIManager::drawSingleplayerScreen() {
         ImGui::EndChild();
     }
 
-    if (scrollMax > 0) {
+    if (scrollMax > 0.0f) {
         float sbWidth {16.0f};
-        float sbX {(winSize.x / 2 + (winSize.x / 4) + 16)};
+
+        float sbX {winPos.x + (winSize.x / 2.0f) + (winSize.x / 4.0f) + 16.0f};
+
         ImDrawList* fg {ImGui::GetForegroundDrawList()};
 
-        fg->AddImage(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background)),
-        ImVec2(sbX, winPos.y),
-        ImVec2(sbX + sbWidth, winPos.y + winSize.y));
+        auto bgTex = reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller_background));
+        auto thumbTex = reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller));
+
+        fg->AddImage(bgTex, ImVec2(sbX, winPos.y), ImVec2(sbX + sbWidth, winPos.y + winSize.y));
 
         float thumbHeight {ImMax((winSize.y / (scrollMax + winSize.y)) * winSize.y, 32.0f)};
         float scrollPct {ImSaturate(scrollY / scrollMax)};
         float thumbY {winPos.y + scrollPct * (winSize.y - thumbHeight)};
 
-        fg->AddImage(reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.scroller)),
-        ImVec2(sbX, thumbY),
-        ImVec2(sbX + sbWidth, thumbY + thumbHeight));
+        fg->AddImage(thumbTex, ImVec2(sbX, thumbY), ImVec2(sbX + sbWidth, thumbY + thumbHeight));
 
         ImVec2 thumbMin(sbX, thumbY);
 
-        if (ImVec2 thumbMax(sbX + sbWidth, thumbY + thumbHeight); ImGui::IsMouseHoveringRect(thumbMin, thumbMax) && ImGui::IsMouseClicked(0))
+        if (ImVec2 thumbMax(sbX + sbWidth, thumbY + thumbHeight); ImGui::IsMouseHoveringRect(thumbMin, thumbMax) && ImGui::IsMouseClicked(0)) {
             scrollDragging = true;
-        if (!ImGui::IsMouseDown(0)) scrollDragging = false;
+        }
+        if (!ImGui::IsMouseDown(0)) {
+            scrollDragging = false;
+        }
 
         if (scrollDragging) {
             float delta {ImGui::GetIO().MouseDelta.y};
             float scrollRatio {scrollMax / (winSize.y - thumbHeight)};
             pendingScrollY = ImClamp(scrollY + delta * scrollRatio, 0.0f, scrollMax);
-            hasPendingScroll  = true;
+            hasPendingScroll = true;
         }
     }
 
@@ -587,7 +597,7 @@ void UIManager::drawSingleplayerScreen() {
     bool hasSelection {!m_SelectedWorld.empty()};
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, (bottomY - 60)));
-    if (minecraftButton("Play Selected World", ImVec2(btnW, 50), !hasSelection)) {
+    if (minecraftButton("Play Selected World", ImVec2(btnW, 55), !hasSelection)) {
         // if (creativeMode) {
         //     SoundClass::QueuePlaylist("Sounds/Creative Songs");
         // } else {
@@ -619,23 +629,24 @@ void UIManager::drawSingleplayerScreen() {
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, bottomY));
-    if (minecraftButton("Rename", ImVec2(btnW * 0.475, 50), !hasSelection)) {
+    if (minecraftButton("Rename", ImVec2(btnW * 0.475, 55), !hasSelection)) {
         m_RenameInitReq = true;
         s_CurrentScreen = ScreenState::RenameWorldScreen;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW + (btnW / 2) - (spacing / 2), bottomY));
-    if (minecraftButton("Delete", ImVec2(btnW * 0.475, 50), !hasSelection)) {
+    if (minecraftButton("Delete", ImVec2(btnW * 0.475, 55), !hasSelection)) {
         s_CurrentScreen = ScreenState::DeleteWorldScreen;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.505f) - spacing, bottomY));
-    if (minecraftButton("Cancel", ImVec2(btnW, 50))) {
+    if (minecraftButton("Cancel", ImVec2(btnW, 55))) {
         s_CurrentScreen = ScreenState::MainMenu;
     }
 
     ImGui::SetCursorPos(ImVec2(windowWidth * 0.505f - spacing, (bottomY - 60)));
-    if (minecraftButton("Create New World", ImVec2(btnW, 50))) {
+    if (minecraftButton("Create New World", ImVec2(btnW, 55))) {
+        config::LevelData::get().setCurrentWorldName("New World");
         s_CurrentScreen = ScreenState::CreateNewWorldScreen;
     }
 
@@ -651,16 +662,19 @@ void UIManager::drawOptionsScreen()
     ImGui::Begin("OptionsScreen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
 
     ImGui::PushFont(s_McFont);
+    ImGui::SetWindowFontScale(1.2f);
 
     const float windowWidth {ImGui::GetWindowSize().x};
     const float center {windowWidth * 0.5f};
-    constexpr float buttonWidth {400.0f};
-    constexpr float spacing {10.0f};
+    constexpr float buttonWidth {500.0f};
+    constexpr float spacing {15.0f};
 
-    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.4f);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.3f);
     constexpr auto optTitle {"Options"};
-    ImGui::SetCursorPosX(center - (ImGui::CalcTextSize(optTitle).x * 0.5f));
+    ImGui::SetCursorPosX(center - ImGui::CalcTextSize(optTitle).x * 0.5f);
     drawMCText(optTitle);
+
+    ImGui::SetWindowFontScale(1.0f);
 
     char musicDisplay[64];
     sprintf(musicDisplay, "Music: %.0f%%", config::SettingsManager::get().getMusicVolume());
@@ -764,15 +778,15 @@ void UIManager::drawOptionsScreen()
     ImGui::SameLine();
     ImGui::SetCursorPosX(center - buttonWidth - spacing);
 
-    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(400, 45))) {
+    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500, 55))) {
         fullscreenBool = false;
         config::SettingsManager::get().setFullscreenBool(fullscreenBool);
     }
 
     ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.65f);
-    ImGui::SetCursorPosX(center - 200.0f);
+    ImGui::SetCursorPosX(center - 250.0f);
 
-    if (minecraftButton("Done", ImVec2(400, 45))) {
+    if (minecraftButton("Done", ImVec2(500, 55))) {
         config::SettingsManager::get().save();
         s_CurrentScreen = ScreenState::MainMenu;
     }
@@ -802,9 +816,9 @@ void UIManager::drawDeleteWorldScreen() {
 
     ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (lineTwo.x + getSelectedWorldWidth.x) / 2, static_cast<float>(windowHeight * 0.45)));
     drawMCText("'" + m_SelectedWorld + "' Will be lost forever! (A long time!)");
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - 415, static_cast<float>(windowHeight * 0.6)));
+    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - 515, static_cast<float>(windowHeight * 0.6)));
 
-    if (minecraftButton("Delete##confirm", ImVec2(400, 45))) {
+    if (minecraftButton("Delete##confirm", ImVec2(500, 55))) {
         std::filesystem::remove_all(config::SettingsManager::getSaveDirectory() / "saves" / m_SelectedWorld);
         m_SelectedWorld = "";
         s_CurrentScreen = ScreenState::SingleplayerScreen;
@@ -813,7 +827,7 @@ void UIManager::drawDeleteWorldScreen() {
     ImGui::SameLine();
     ImGui::SetCursorPos(ImVec2(windowWidth / 2 + 15, static_cast<float>(windowHeight * 0.6)));
 
-    if (minecraftButton("Cancel##confirm", ImVec2(400, 45))) {
+    if (minecraftButton("Cancel##confirm", ImVec2(500, 55))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
     ImGui::PopFont();
@@ -878,8 +892,7 @@ void UIManager::drawRenameWorldScreen() {
     ImGui::End();
 }
 
-void UIManager::drawCreateNewWorldScreen()
-{
+void UIManager::drawCreateNewWorldScreen() {
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(getIO().DisplaySize);
     ImGui::Begin("CreateWorldScreen", nullptr,
@@ -897,35 +910,37 @@ void UIManager::drawCreateNewWorldScreen()
     const float centerX {windowWidth / 2.0f};
     constexpr float spacing {20.0f};
 
+    ImGui::SetWindowFontScale(1.2f);
     const ImVec2 cNWSize {ImGui::CalcTextSize("Create New World")};
-
-    ImGui::SetCursorPos(ImVec2(centerX - (cNWSize.x / 2), static_cast<float>(windowHeight * 0.05)));
+    ImGui::SetCursorPos(ImVec2(centerX - (cNWSize.x / 2), static_cast<float>(windowHeight * 0.07)));
     drawMCText("Create New World");
+    ImGui::SetWindowFontScale(1.0f);
 
     std::string worldName {config::LevelData::get().getCurrentWorldName()};
     long long seed = config::LevelData::get().getSeed();
     bool creativeMode {config::LevelData::get().getCreativeModeBool()};
+    const std::string savedInText {"Will be saved in: " + worldName};
 
     ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.215)));
     drawMCText("World Name", ImVec4(134, 132, 131, 255));
     ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.29) + 15));
-    drawMCText("Will be saved in: " + worldName, ImVec4(134, 132, 131, 255));
+    drawMCText(savedInText, ImVec4(134, 132, 131, 255));
 
     ImGui::SetCursorPosX(centerX - windowWidth / 2 / 2);
     ImGui::SetCursorPosY(static_cast<float>(windowHeight * 0.25));
     minecraftTextInput("##worldname", worldName, ImVec2(windowWidth / 2, 55));
 
-    std::string selectedGameMode {"Survival"};
-
+    static std::string selectedGameMode {"Survival"};
+    const std::string modeButtonText {"Game Mode: " + selectedGameMode};
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2), static_cast<float>(windowHeight * 0.4)));
-    if (selectedGameMode == "Survival" && minecraftButton(("Game Mode: " + selectedGameMode).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (selectedGameMode == "Survival" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
         selectedGameMode = "Creative";
         creativeMode = true;
     }
 
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2),
         static_cast<float>(windowHeight * 0.4)));
-    if (selectedGameMode == "Creative" && minecraftButton(("Game Mode: " + selectedGameMode).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (selectedGameMode == "Creative" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
         selectedGameMode = "Survival";
         creativeMode = false;
     }
@@ -946,8 +961,7 @@ void UIManager::drawCreateNewWorldScreen()
 
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - windowWidth / 3.25 / 2), static_cast<float>(windowHeight * 0.7)));
     if (minecraftButton("More World Options...", ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
-        // moreWorldOptions = true;
-        // createWorldScreen = false;
+        s_CurrentScreen = ScreenState::MoreWorldOptionsScreen;
     }
 
     ImGui::SetCursorPos(ImVec2(centerX - (windowWidth / 3) - spacing, static_cast<float>(windowHeight * 0.9)));
@@ -956,6 +970,7 @@ void UIManager::drawCreateNewWorldScreen()
         if (m_SeedStringInput.empty()) {
             m_SeedInput = false;
         }
+
         else {
             m_SeedInput = true;
 
@@ -995,6 +1010,7 @@ void UIManager::drawCreateNewWorldScreen()
         //
         worldName = finalName;
         m_SeedStringInput = "";
+        config::LevelData::get().setCurrentWorldName(worldName);
         config::LevelData::get().saveLevel();
         // currentState = LOADING;
         // loadingScreen = true;
@@ -1018,6 +1034,135 @@ void UIManager::drawCreateNewWorldScreen()
         //     }).detach();
         // }
     }
+    ImGui::SetCursorPos(ImVec2(centerX + spacing, static_cast<float>(windowHeight * 0.9)));
+
+    if (minecraftButton("Cancel", ImVec2(windowWidth / 3, 55))) {
+        s_CurrentScreen = ScreenState::SingleplayerScreen;
+        m_SeedStringInput = "";
+        worldName = "New World";
+    }
+
+    config::LevelData::get().setCurrentWorldName(worldName);
+
+    ImGui::PopFont();
+    ImGui::End();
+}
+
+void UIManager::drawMoreWorldOptionsScreen() {
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(getIO().DisplaySize);
+    ImGui::Begin("MoreWorldOptionsScreen", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoScrollbar);
+
+    ImGui::PushFont(s_McFont);
+
+    const float windowWidth {ImGui::GetWindowSize().x};
+    const float windowHeight {ImGui::GetWindowSize().y};
+
+    const float centerX {windowWidth / 2.0f};
+    constexpr float spacing {20.0f};
+
+    ImGui::SetWindowFontScale(1.2f);
+    const ImVec2 cNWSize {ImGui::CalcTextSize("Create New World")};
+
+    std::string worldName {config::LevelData::get().getCurrentWorldName()};
+    long long seed = config::LevelData::get().getSeed();
+    const bool creativeMode {config::LevelData::get().getCreativeModeBool()};
+
+    ImGui::SetCursorPos(ImVec2(centerX - (cNWSize.x / 2), static_cast<float>(windowHeight * 0.07)));
+    drawMCText("Create New World");
+    ImGui::SetWindowFontScale(1.0f);
+
+    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.215)));
+    drawMCText("Seed for the World Generator", ImVec4(134, 132, 131, 255));
+    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.29) + 15));
+    drawMCText("Leave blank for a random seed", ImVec4(134, 132, 131, 255));
+
+    ImGui::SetCursorPosX(centerX - (windowWidth / 2) / 2);
+    ImGui::SetCursorPosY(static_cast<float>(windowHeight * 0.25));
+
+    minecraftTextInput("##seed", m_SeedStringInput, ImVec2(windowWidth / 2, 55));
+
+    ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2), static_cast<float>(windowHeight * 0.7)));
+    if (minecraftButton("Done", ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+        s_CurrentScreen = ScreenState::CreateNewWorldScreen;
+    }
+
+    ImGui::SetCursorPos(ImVec2(centerX - (windowWidth / 3) - spacing, static_cast<float>(windowHeight * 0.9)));
+    if (minecraftButton("Create World", ImVec2(windowWidth / 3, 55))) {
+
+        if (m_SeedStringInput.empty()) {
+            m_SeedInput = false;
+        }
+
+        else {
+            m_SeedInput = true;
+
+            try {
+                size_t pos;
+                seed = std::stoll(m_SeedStringInput, &pos);
+
+                if (pos != m_SeedStringInput.length()) {
+                    seed = static_cast<long long>(std::hash<std::string>{}(m_SeedStringInput));
+                }
+            }
+            catch (...) {
+                seed = static_cast<long long>(std::hash<std::string>{}(m_SeedStringInput));
+            }
+        }
+
+        config::LevelData::get().setSeed(seed);
+        config::LevelData::get().setCreativeModeBool(creativeMode);
+        std::string finalName = worldName;
+
+        if (std::filesystem::exists(config::SettingsManager::getSaveDirectory() / "saves" / finalName)) {
+            int counter = 1;
+            while (std::filesystem::exists(config::SettingsManager::getSaveDirectory() / "saves" /
+                worldName / (" (" + std::to_string(counter) + ")"))) {
+                counter++;
+            }
+            finalName = worldName + " (" + std::to_string(counter) + ")";
+        }
+
+        std::filesystem::create_directories(config::SettingsManager::getSaveDirectory() / "saves" / finalName);
+        //
+        // if (selectedGameMode == "Creative") {
+        //     SoundClass::QueuePlaylist("Sounds/Creative Songs");
+        // } else {
+        //     SoundClass::QueuePlaylist("Sounds/Survival Songs");
+        // }
+        //
+        worldName = finalName;
+        m_SeedStringInput = "";
+        config::LevelData::get().setCurrentWorldName(worldName);
+        config::LevelData::get().saveLevel();
+        // currentState = LOADING;
+        // loadingScreen = true;
+        // worldLoaded = false;
+        // isWorldReady = false;
+        // loadingProgress = 0.0f;
+        //
+        // createWorldScreen = false;
+        //
+        // {
+        //     std::lock_guard lock(queueMutex);
+        //     worldMap.clear();
+        //     pendingTasks.clear();
+        //     finishedTasks.clear();
+        // }
+        //
+        // bool expected = false;
+        // if (isLoading.compare_exchange_strong(expected, true)) {
+        //     std::thread([finalName]() {
+        //         startWorldLoad(finalName);
+        //     }).detach();
+        // }
+    }
+
     ImGui::SetCursorPos(ImVec2(centerX + spacing, static_cast<float>(windowHeight * 0.9)));
     if (minecraftButton("Cancel", ImVec2(windowWidth / 3, 55))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;

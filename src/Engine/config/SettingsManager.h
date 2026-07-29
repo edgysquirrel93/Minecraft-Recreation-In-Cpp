@@ -3,7 +3,6 @@
 #include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
-#include <utility>
 
 namespace engine::config {
 
@@ -45,18 +44,22 @@ public:
 };
 
 class LevelData {
-    static LevelData* s_Instance;
 
     long long m_Seed = 0;
     std::string m_CurrentWorldName;
     glm::vec3 m_CameraPos{0.0f, 0.0f, 0.0f};
     bool m_HasPlayerPos = false;
     bool m_CreativeMode = false;
-    std::string m_LastPlayed;
-public:
-    explicit LevelData(std::string worldName) : m_CurrentWorldName(std::move(worldName)) {}
+    std::string m_LastPlayed{};
 
-    static LevelData& get() {return *s_Instance;}
+    LevelData() = default;
+
+public:
+
+    static LevelData& get() {static LevelData instance; return instance;}
+
+    LevelData(const LevelData&) = delete;
+    LevelData& operator=(const LevelData&) = delete;
 
     void loadLevel();
     void saveLevel();
