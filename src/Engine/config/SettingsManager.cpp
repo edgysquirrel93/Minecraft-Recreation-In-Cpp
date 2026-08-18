@@ -28,6 +28,7 @@ void SettingsManager::load() {
         m_BaseFov        = data.value("baseFov", 70.0f);
         m_RenderDistance = data.value("renderDistance", 12);
         m_FullscreenBool = data.value("fullscreen", false);
+        m_GuiScale       = data.value("GuiScale", 1080.0f);
 
     } catch (const std::exception& e) {
         std::cerr << "JSON Load Error: " << e.what() << std::endl;
@@ -46,6 +47,7 @@ void SettingsManager::save() {
     data["baseFov"]       = m_BaseFov;
     data["renderDistance"]= m_RenderDistance;
     data["fullscreen"]    = m_FullscreenBool;
+    data["GuiScale"]      = m_GuiScale;
 
     if (std::ofstream outFile(m_Filename); outFile.is_open()) {
         outFile << data.dump(4);
@@ -63,21 +65,19 @@ fs::path SettingsManager::getSaveDirectory() {
         baseDir = fs::current_path();
     }
 #elif defined(__linux__)
-    // Linux
-    const char* xdgDataPath = std::getenv("XDG_DATA_HOME");
+    // Best os (Linux)
 
-    if (xdgDataPath && xdgDataPath[0] != '\0') {
+    if (const char* xdgDataPath = std::getenv("XDG_DATA_HOME"); xdgDataPath && xdgDataPath[0] != '\0') {
         baseDir = fs::path(xdgDataPath);
     } else {
-        const char* homePath = std::getenv("HOME");
-        if (homePath) {
+        if (const char* homePath = std::getenv("HOME")) {
             baseDir = fs::path(homePath) / ".local" / "share";
         } else {
             baseDir = fs::current_path();
         }
     }
 #else
-    // Other weird Os' (like Mac)
+    // Other weird Os (like Mac)
     baseDir = fs::current_path();
 #endif
 
@@ -90,7 +90,7 @@ fs::path SettingsManager::getSaveDirectory() {
     return saveDir;
 }
 
-long long generateSeed() {
+static long long generateSeed() {
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution dist(

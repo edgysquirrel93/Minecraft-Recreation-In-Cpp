@@ -9,12 +9,13 @@ namespace engine::config {
 class SettingsManager {
     static SettingsManager* s_Instance;
     std::string m_Filename;
-    float m_Sensitivity {};
-    float m_SoundEffects {};
-    float m_MusicVolume {};
-    float m_BaseFov {};
-    int m_RenderDistance {};
-    bool m_FullscreenBool {};
+    float m_Sensitivity    {2.0f};
+    float m_SoundEffects   {100.0f};
+    float m_MusicVolume    {100.0f};
+    float m_BaseFov        {70.0f};
+    int   m_RenderDistance {12};
+    bool  m_FullscreenBool {false};
+    float m_GuiScale       {1.0f};
 public:
     explicit SettingsManager(const std::string& path)
         : m_Filename((getSaveDirectory() / path).string()) { s_Instance = this; }
@@ -41,6 +42,8 @@ public:
     void setRenderDistance(const int r) {m_RenderDistance = r;}
     [[nodiscard]] bool getFullscreenBool() const {return m_FullscreenBool;}
     void setFullscreenBool(const bool f) {m_FullscreenBool = f;}
+    [[nodiscard]] float getGuiScale() const {return m_GuiScale;}
+    void setGuiScale (const float g) {m_GuiScale = g;}
 };
 
 class LevelData {

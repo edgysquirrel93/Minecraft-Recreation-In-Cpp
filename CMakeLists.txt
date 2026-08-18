@@ -82,6 +82,15 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/config/SettingsManager.h
         src/Engine/engine/Engine.cpp
         src/Engine/engine/Engine.h
+        src/Engine/shaders/shaders.h
+        src/Engine/worldgen/WorldGen.cpp
+        src/Engine/worldgen/WorldGen.h
+        src/Engine/rendering/Rendering.cpp
+        src/Engine/rendering/Rendering.h
+        src/Engine/meshdata/MeshData.cpp
+        src/Engine/meshdata/MeshData.h
+        src/Engine/player/Input.cpp
+        src/Engine/player/Input.h
 )
 
 FetchContent_GetProperties(imgui)

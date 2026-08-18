@@ -10,7 +10,6 @@ namespace engine::ui {
 
 enum class ScreenState {
     MainMenu,
-    BackgroundScreen,
     InMenu,
     InGame,
     SingleplayerScreen,
@@ -18,7 +17,8 @@ enum class ScreenState {
     DeleteWorldScreen,
     RenameWorldScreen,
     CreateNewWorldScreen,
-    MoreWorldOptionsScreen
+    MoreWorldOptionsScreen,
+    PauseMenuScreen
 };
 
 class UIManager {
@@ -32,6 +32,10 @@ class UIManager {
     inline static bool m_RenameInitReq;
     inline static std::string m_SeedStringInput;
     inline static bool m_SeedInput {false};
+
+    // UI Sizes
+    inline static float m_Scale {1.0f};
+    inline static float m_ButtonHeight {55.0f};
 
     // private functions
     static ImGuiIO& getIO() {return ImGui::GetIO();}
@@ -52,6 +56,7 @@ class UIManager {
     static void drawRenameWorldScreen();
     static void drawCreateNewWorldScreen();
     static void drawMoreWorldOptionsScreen();
+    static void drawPauseMenuScreen();
 
     public:
     UIManager();
@@ -67,6 +72,8 @@ class UIManager {
     // setters/getters
     static bool getSeedInput() {return m_SeedInput;}
     static void setSeedInput(const bool s) {m_SeedInput = s;}
+    static ScreenState getCurrentScreen() {return s_CurrentScreen;}
+    static void setCurrentScreen(const ScreenState c) {s_CurrentScreen = c;}
 };
 
 } // engine::ui

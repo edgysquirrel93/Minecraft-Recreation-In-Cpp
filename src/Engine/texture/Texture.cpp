@@ -51,6 +51,7 @@ void LoadTexture::loadAllTextures() {
 
     // In game textures
     stbi_set_flip_vertically_on_load(true);
+    block.dirt.loadTexture("assets/Textures/Blocks/dirt.png");
 }
 
 } // engine::texture

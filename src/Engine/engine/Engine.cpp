@@ -1,5 +1,7 @@
-#include "../texture/Texture.h"
-#include "../ui/UIManager.h"
+#include "Engine/texture/Texture.h"
+#include "Engine/ui/UIManager.h"
+#include "Engine/meshdata/MeshData.h"
+#include "Engine/player/Input.h"
 #include "Engine.h"
 
 namespace engine {
@@ -9,7 +11,9 @@ namespace engine {
     void Engine::initSystems() {
         m_Settings.load();
         m_WindowInstance.initWindow();
+        m_ShaderManager = std::make_unique<rendering::ShaderManager>();
         m_Sound.init();
+        meshdata::MeshData::Init();
         texture::LoadTexture::loadAllTextures();
         ui::UIManager::init(m_WindowInstance.getWindow());
         m_LastFrameTime = std::chrono::steady_clock::now();
@@ -18,6 +22,8 @@ namespace engine {
     void Engine::gameLoop()
     {
         GLFWwindow* window = m_WindowInstance.getWindow();
+
+        glEnable(GL_DEPTH_TEST);
 
         while (!glfwWindowShouldClose(window))
         {
@@ -33,6 +39,12 @@ namespace engine {
 
             ui::UIManager::update();
             ui::UIManager::render();
+
+            if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame)
+            {
+                input::Input::processInput(window);
+                rendering::Rendering::gameRender(*m_ShaderManager, window);
+            }
 
             m_WindowInstance.checkWindowState();
 

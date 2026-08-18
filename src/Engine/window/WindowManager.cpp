@@ -12,6 +12,7 @@ void WindowManager::initWindow() {
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWmonitor* monitor {glfwGetPrimaryMonitor()};
@@ -24,6 +25,7 @@ void WindowManager::initWindow() {
     if (!m_Window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
+        return;
     }
 
     glfwMakeContextCurrent(m_Window);
@@ -31,6 +33,8 @@ void WindowManager::initWindow() {
     if (!gladLoadGL(glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD!" << std::endl;
     }
+
+    glfwSetFramebufferSizeCallback(m_Window, framebufferSizeCallback);
 }
 
 // Fullscreening

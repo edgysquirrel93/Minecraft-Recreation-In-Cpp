@@ -27,9 +27,16 @@ struct UITexture {
     Texture scroller_background;
     Texture dirt_ui;
 };
+
+struct BlockTexture
+{
+    Texture dirt;
+};
+
 class LoadTexture {
 public:
     inline static UITexture ui;
+    inline static BlockTexture block;
 
     static void loadAllTextures();
 };

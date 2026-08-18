@@ -84,7 +84,7 @@ bool UIManager::minecraftSlider(const char* label, char textDisplay[], float* va
     ImGuiContext& g {*GImGui};
     const ImGuiID id {window->GetID(label)};
 
-    constexpr ImVec2 size(500, 55);
+    const ImVec2 size(500 * m_Scale, m_ButtonHeight);
     const ImVec2 pos {window->DC.CursorPos};
     const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
 
@@ -241,7 +241,7 @@ bool UIManager::minecraftTextInput(const char* label, std::string& inputText, co
     // Draw text
     std::string displayText {inputText};
     if (focused && static_cast<int>(ImGui::GetTime() * 2) % 2 == 0)
-        displayText += "_";
+        displayText += '_';
 
     const ImVec2 textPos(bb.Min.x + 10.0f, bb.Min.y + (bb.GetHeight() - 32.0f) * 0.5f);
     drawTextWithShadow(textPos, displayText.c_str());
@@ -267,6 +267,13 @@ void UIManager::update() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    const float screenRatio = ImGui::GetIO().DisplaySize.y / 1080.0f;
+
+    const float userScale = config::SettingsManager::get().getGuiScale();
+
+    m_Scale = screenRatio * userScale;
+    m_ButtonHeight = 55.0f * m_Scale;
 
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
@@ -302,9 +309,12 @@ void UIManager::update() {
             drawMoreWorldOptionsScreen();
             drawBackgroundScreen();
             break;
+        case ScreenState::PauseMenuScreen:
+            drawPauseMenuScreen();
+            drawBackgroundScreen();
+            break;
         case ScreenState::InGame:
         case ScreenState::InMenu:
-        case ScreenState::BackgroundScreen:
             break;
     }
 
@@ -334,8 +344,10 @@ void UIManager::drawMainMenu() {
 
     ImGui::PushFont(s_McFont);
 
-    constexpr float logoWidth {960.0f};
-    constexpr float logoHeight {540.0f};
+    ImGui::SetWindowFontScale(m_Scale);
+
+    const float logoWidth {960.0f * m_Scale};
+    const float logoHeight {540.0f * m_Scale};
     ImGui::SetCursorPosX((getIO().DisplaySize.x - logoWidth) * 0.5f);
     ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.0025f);
 
@@ -347,21 +359,21 @@ void UIManager::drawMainMenu() {
     );
 
     const float windowWidth {ImGui::GetWindowSize().x};
-    constexpr float buttonWidth {600.0f};
+    const float buttonWidth {600.0f * m_Scale};
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.5f);
 
-    if (minecraftButton("Singleplayer", ImVec2(buttonWidth, 55))) {
+    if (minecraftButton("Singleplayer", ImVec2(buttonWidth, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
-    if (minecraftButton("Options", ImVec2(buttonWidth, 55))) {
+    if (minecraftButton("Options", ImVec2(buttonWidth, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::OptionsScreen;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
-    if (minecraftButton("Quit Game", ImVec2(buttonWidth, 55))) {
+    if (minecraftButton("Quit Game", ImVec2(buttonWidth, m_ButtonHeight))) {
         glfwSetWindowShouldClose(s_GlfwWindow, true);
     }
 
@@ -407,15 +419,16 @@ void UIManager::drawSingleplayerScreen() {
     const float windowWidth {ImGui::GetWindowSize().x};
     const float windowHeight {ImGui::GetWindowSize().y};
 
-    ImGui::SetWindowFontScale(1.2f);
-    const auto title {"Select World"};
+    const float titleScale = m_Scale * 1.15f;
+    ImGui::SetWindowFontScale(titleScale);
+    constexpr auto title {"Select World"};
     ImGui::SetCursorPosY(windowHeight * 0.07f);
     ImGui::SetCursorPosX((windowWidth - ImGui::CalcTextSize(title).x) * 0.5f);
     drawMCText(title);
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetWindowFontScale(m_Scale);
 
-    ImGui::SetCursorPosY(windowHeight * 0.15f);
-    ImGui::SetCursorPosX(0);
+    ImGui::SetCursorPosY(windowHeight * 0.1825f);
+    ImGui::SetCursorPosX(-5 * m_Scale);
     static float pendingScrollY {};
     static bool hasPendingScroll {false};
     static bool scrollDragging {false};
@@ -452,7 +465,7 @@ void UIManager::drawSingleplayerScreen() {
             lastWorldListRefresh = static_cast<float>(glfwGetTime());
         }
 
-        constexpr float dirtTileSize {128.0f};
+        const float dirtTileSize {128.0f * m_Scale};
         const ImU32 dirtTint {ImGui::GetColorU32(ImVec4(0.0f, 0.0f, 0.0f, 0.0f))};
         const float uvV1 {scrollY / dirtTileSize};
         const float uvV2 {uvV1 + (winSize.y / dirtTileSize)};
@@ -517,21 +530,21 @@ void UIManager::drawSingleplayerScreen() {
             }
             ImGui::PopStyleColor(3);
 
-            ImGui::SetCursorPosY(startY + 10.0f);
-            ImGui::SetCursorPosX(boxPosX + 15.0f);
+            ImGui::SetCursorPosY(startY + (10.0f * m_Scale));
+            ImGui::SetCursorPosX(boxPosX + (15.0f * m_Scale));
             drawMCText(name);
 
-            ImGui::SetCursorPosY(startY + 45.0f);
-            ImGui::SetCursorPosX(boxPosX + 15.0f);
+            ImGui::SetCursorPosY(startY + (45.0f * m_Scale));
+            ImGui::SetCursorPosX(boxPosX + (15.0f * m_Scale));
             ImVec4 grey {ImGui::ColorConvertU32ToFloat4(IM_COL32(134, 132, 131, 255))};
             drawMCText(name + " " += worldTime, grey);
 
-            ImGui::SetCursorPosY(startY + 75.0f);
-            ImGui::SetCursorPosX(boxPosX + 15.0f);
+            ImGui::SetCursorPosY(startY + 75.0f * m_Scale);
+            ImGui::SetCursorPosX(boxPosX + 15.0f * m_Scale);
             drawMCText(worldGameMode, grey);
 
             if (i < static_cast<int>(worldNames.size()) - 1) {
-                ImGui::SetCursorPosY(startY + boxHeight + 10.0f);
+                ImGui::SetCursorPosY(startY + boxHeight + (10.0f * m_Scale));
             } else {
                 ImGui::SetCursorPosY(startY + boxHeight);
             }
@@ -539,7 +552,7 @@ void UIManager::drawSingleplayerScreen() {
         }
 
 
-        float shadowH {30.0f};
+        float shadowH {30.0f * m_Scale};
         ImU32 c_black {IM_COL32(0, 0, 0, 255)};
         ImU32 c_trans {IM_COL32(0, 0, 0, 0)};
 
@@ -558,7 +571,7 @@ void UIManager::drawSingleplayerScreen() {
     if (scrollMax > 0.0f) {
         float sbWidth {16.0f};
 
-        float sbX {winPos.x + (winSize.x / 2.0f) + (winSize.x / 4.0f) + 16.0f};
+        float sbX {winPos.x + (winSize.x / 2.0f) + (winSize.x / 4.0f) + (16.0f * m_Scale)};
 
         ImDrawList* fg {ImGui::GetForegroundDrawList()};
 
@@ -567,7 +580,7 @@ void UIManager::drawSingleplayerScreen() {
 
         fg->AddImage(bgTex, ImVec2(sbX, winPos.y), ImVec2(sbX + sbWidth, winPos.y + winSize.y));
 
-        float thumbHeight {ImMax((winSize.y / (scrollMax + winSize.y)) * winSize.y, 32.0f)};
+        float thumbHeight {ImMax((winSize.y / (scrollMax + winSize.y)) * winSize.y, 32.0f * m_Scale)};
         float scrollPct {ImSaturate(scrollY / scrollMax)};
         float thumbY {winPos.y + scrollPct * (winSize.y - thumbHeight)};
 
@@ -590,14 +603,14 @@ void UIManager::drawSingleplayerScreen() {
         }
     }
 
-    constexpr float btnW {400.0f};
-    constexpr float spacing {20.0f};
-    const float bottomY {windowHeight - 60.0f};
+    const float btnW {400.0f * m_Scale};
+    const float spacing {20.0f * m_Scale};
+    const float bottomY {windowHeight - (60.0f * m_Scale)};
 
     bool hasSelection {!m_SelectedWorld.empty()};
 
-    ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, (bottomY - 60)));
-    if (minecraftButton("Play Selected World", ImVec2(btnW, 55), !hasSelection)) {
+    ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, (bottomY - (60.0f * m_Scale))));
+    if (minecraftButton("Play Selected World", ImVec2(btnW, m_ButtonHeight), !hasSelection)) {
         // if (creativeMode) {
         //     SoundClass::QueuePlaylist("Sounds/Creative Songs");
         // } else {
@@ -626,26 +639,27 @@ void UIManager::drawSingleplayerScreen() {
         //         startWorldLoad(nameToLoad);
         //     }).detach();
         // }
+        s_CurrentScreen = ScreenState::InGame;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, bottomY));
-    if (minecraftButton("Rename", ImVec2(btnW * 0.475, 55), !hasSelection)) {
+    if (minecraftButton("Rename", ImVec2(btnW * 0.475f, m_ButtonHeight), !hasSelection)) {
         m_RenameInitReq = true;
         s_CurrentScreen = ScreenState::RenameWorldScreen;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW + (btnW / 2) - (spacing / 2), bottomY));
-    if (minecraftButton("Delete", ImVec2(btnW * 0.475, 55), !hasSelection)) {
+    if (minecraftButton("Delete", ImVec2(btnW * 0.475f, m_ButtonHeight), !hasSelection)) {
         s_CurrentScreen = ScreenState::DeleteWorldScreen;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.505f) - spacing, bottomY));
-    if (minecraftButton("Cancel", ImVec2(btnW, 55))) {
+    if (minecraftButton("Cancel", ImVec2(btnW, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::MainMenu;
     }
 
-    ImGui::SetCursorPos(ImVec2(windowWidth * 0.505f - spacing, (bottomY - 60)));
-    if (minecraftButton("Create New World", ImVec2(btnW, 55))) {
+    ImGui::SetCursorPos(ImVec2(windowWidth * 0.505f - spacing, (bottomY - (60.0f * m_Scale))));
+    if (minecraftButton("Create New World", ImVec2(btnW, m_ButtonHeight))) {
         config::LevelData::get().setCurrentWorldName("New World");
         s_CurrentScreen = ScreenState::CreateNewWorldScreen;
     }
@@ -662,24 +676,25 @@ void UIManager::drawOptionsScreen()
     ImGui::Begin("OptionsScreen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
 
     ImGui::PushFont(s_McFont);
-    ImGui::SetWindowFontScale(1.2f);
+
+    ImGui::SetWindowFontScale(m_Scale * 1.15f);
 
     const float windowWidth {ImGui::GetWindowSize().x};
     const float center {windowWidth * 0.5f};
-    constexpr float buttonWidth {500.0f};
+    const float buttonWidth {500.0f * m_Scale};
     constexpr float spacing {15.0f};
 
-    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.3f);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.25f);
     constexpr auto optTitle {"Options"};
     ImGui::SetCursorPosX(center - ImGui::CalcTextSize(optTitle).x * 0.5f);
     drawMCText(optTitle);
 
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetWindowFontScale(m_Scale);
 
     char musicDisplay[64];
     sprintf(musicDisplay, "Music: %.0f%%", config::SettingsManager::get().getMusicVolume());
 
-    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.45f);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.375f);
     ImGui::SetCursorPosX(center - buttonWidth - spacing);
 
     float musicVolume {config::SettingsManager::get().getMusicVolume()};
@@ -769,7 +784,7 @@ void UIManager::drawOptionsScreen()
     else
         fullscreenLabel = "ON";
 
-    if (fullscreenBool == false && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(400, 45))) {
+    if (fullscreenBool == false && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500 * m_Scale, m_ButtonHeight))) {
         fullscreenLabel = "ON";
         fullscreenBool = true;
         config::SettingsManager::get().setFullscreenBool(fullscreenBool);
@@ -778,15 +793,29 @@ void UIManager::drawOptionsScreen()
     ImGui::SameLine();
     ImGui::SetCursorPosX(center - buttonWidth - spacing);
 
-    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500, 55))) {
+    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500 * m_Scale, m_ButtonHeight))) {
         fullscreenBool = false;
         config::SettingsManager::get().setFullscreenBool(fullscreenBool);
     }
 
-    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.65f);
-    ImGui::SetCursorPosX(center - 250.0f);
+    ImGui::SetCursorPosX(center - (500.0f / 2 * m_Scale));
 
-    if (minecraftButton("Done", ImVec2(500, 55))) {
+    char guiScaleDisplay[64];
+
+    float guiScale {config::SettingsManager::get().getGuiScale()};
+
+    snprintf(guiScaleDisplay, sizeof(guiScaleDisplay), "GUI Scale: %.0f%%", guiScale * 100.0f);
+
+    if (constexpr auto guiScaleDisplayNum = "##guiScale";
+    minecraftSlider(guiScaleDisplayNum, guiScaleDisplay, &guiScale, 0.5f, 2.0f)) {
+        guiScale = std::round(guiScale / 0.25f) * 0.25f;
+        config::SettingsManager::get().setGuiScale(guiScale);
+    }
+
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.7f);
+    ImGui::SetCursorPosX(center - (500.0f / 2 * m_Scale));
+
+    if (minecraftButton("Done", ImVec2(500 * m_Scale, m_ButtonHeight))) {
         config::SettingsManager::get().save();
         s_CurrentScreen = ScreenState::MainMenu;
     }
@@ -807,6 +836,8 @@ void UIManager::drawDeleteWorldScreen() {
 
     ImGui::PushFont(s_McFont);
 
+    ImGui::SetWindowFontScale(m_Scale);
+
     const ImVec2 lineOne {ImGui::CalcTextSize("Are you sure you want to delete this world?")};
     const ImVec2 lineTwo {ImGui::CalcTextSize("'' Will be lost forever! (A long time!)")};
 
@@ -816,18 +847,24 @@ void UIManager::drawDeleteWorldScreen() {
 
     ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (lineTwo.x + getSelectedWorldWidth.x) / 2, static_cast<float>(windowHeight * 0.45)));
     drawMCText("'" + m_SelectedWorld + "' Will be lost forever! (A long time!)");
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - 515, static_cast<float>(windowHeight * 0.6)));
 
-    if (minecraftButton("Delete##confirm", ImVec2(500, 55))) {
+    const float btnWidth {400.0f * m_Scale};
+    const float spacing {20.0f * m_Scale};
+    const float totalWidth {(btnWidth * 2.0f) + spacing};
+    const float startX {(windowWidth - totalWidth) * 0.5f};
+    const float buttonY {windowHeight * 0.6f};
+
+    ImGui::SetCursorPos(ImVec2(startX, buttonY));
+    if (minecraftButton("Delete##confirm", ImVec2(btnWidth, m_ButtonHeight))) {
         std::filesystem::remove_all(config::SettingsManager::getSaveDirectory() / "saves" / m_SelectedWorld);
         m_SelectedWorld = "";
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
 
     ImGui::SameLine();
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 + 15, static_cast<float>(windowHeight * 0.6)));
+    ImGui::SetCursorPos(ImVec2(startX + btnWidth + spacing, buttonY));
 
-    if (minecraftButton("Cancel##confirm", ImVec2(500, 55))) {
+    if (minecraftButton("Cancel##confirm", ImVec2(btnWidth, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
     ImGui::PopFont();
@@ -855,20 +892,23 @@ void UIManager::drawRenameWorldScreen() {
         originalName = m_SelectedWorld;
     }
 
+    ImGui::SetWindowFontScale(m_Scale * 1.15f);
     const ImVec2 pos = ImGui::CalcTextSize("Rename World");
-    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (pos.x / 2), static_cast<float>(windowHeight * 0.1)));
+    ImGui::SetCursorPos(ImVec2((windowWidth - pos.x) * 0.5f, static_cast<float>(windowHeight * 0.1)));
     drawMCText("Rename World");
+    ImGui::SetWindowFontScale(m_Scale);
 
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.365)));
+
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (windowWidth / 4), static_cast<float>(windowHeight * 0.365)));
 
     drawMCText("World Name", ImVec4(134, 132, 131, 255));
 
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4)));
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (windowWidth / 4), static_cast<float>(windowHeight * 0.4)));
 
-    if (minecraftTextInput("##worldname", renameBuffer, ImVec2(windowWidth / 2, 55))) {}
+    if (minecraftTextInput("##worldname", renameBuffer, ImVec2((windowWidth / 2), m_ButtonHeight))) {}
 
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.525)));
-    if (minecraftButton("Rename##confirm", ImVec2(windowWidth / 2, 55))) {
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (windowWidth / 4), static_cast<float>(windowHeight * 0.525)));
+    if (minecraftButton("Rename##confirm", ImVec2(windowWidth / 2, m_ButtonHeight))) {
         const std::string oldPath {(config::SettingsManager::getSaveDirectory() / "saves" / originalName).string()};
         const std::string newPath {(config::SettingsManager::getSaveDirectory() / "saves" / renameBuffer).string()};
 
@@ -882,9 +922,9 @@ void UIManager::drawRenameWorldScreen() {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
 
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.6)));
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - (windowWidth / 4), static_cast<float>(windowHeight * 0.6)));
 
-    if (minecraftButton("Cancel##confirm", ImVec2(windowWidth / 2, 55))) {
+    if (minecraftButton("Cancel##confirm", ImVec2(windowWidth / 2, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
     }
 
@@ -908,13 +948,13 @@ void UIManager::drawCreateNewWorldScreen() {
     const float windowHeight {ImGui::GetWindowSize().y};
 
     const float centerX {windowWidth / 2.0f};
-    constexpr float spacing {20.0f};
+    const float spacing {20.0f * m_Scale};
 
-    ImGui::SetWindowFontScale(1.2f);
+    ImGui::SetWindowFontScale(m_Scale * 1.15f);
     const ImVec2 cNWSize {ImGui::CalcTextSize("Create New World")};
-    ImGui::SetCursorPos(ImVec2(centerX - (cNWSize.x / 2), static_cast<float>(windowHeight * 0.07)));
+    ImGui::SetCursorPos(ImVec2(centerX - cNWSize.x / 2, static_cast<float>(windowHeight * 0.07)));
     drawMCText("Create New World");
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetWindowFontScale(m_Scale);
 
     std::string worldName {config::LevelData::get().getCurrentWorldName()};
     long long seed = config::LevelData::get().getSeed();
@@ -928,44 +968,44 @@ void UIManager::drawCreateNewWorldScreen() {
 
     ImGui::SetCursorPosX(centerX - windowWidth / 2 / 2);
     ImGui::SetCursorPosY(static_cast<float>(windowHeight * 0.25));
-    minecraftTextInput("##worldname", worldName, ImVec2(windowWidth / 2, 55));
+    minecraftTextInput("##worldname", worldName, ImVec2(windowWidth / 2, m_ButtonHeight));
 
     static std::string selectedGameMode {"Survival"};
     const std::string modeButtonText {"Game Mode: " + selectedGameMode};
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2), static_cast<float>(windowHeight * 0.4)));
-    if (selectedGameMode == "Survival" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (selectedGameMode == "Survival" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), m_ButtonHeight))) {
         selectedGameMode = "Creative";
         creativeMode = true;
     }
 
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2),
         static_cast<float>(windowHeight * 0.4)));
-    if (selectedGameMode == "Creative" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (selectedGameMode == "Creative" && minecraftButton((modeButtonText).c_str(), ImVec2(static_cast<float>(windowWidth / 3.25), m_ButtonHeight))) {
         selectedGameMode = "Survival";
         creativeMode = false;
     }
 
     if (selectedGameMode == "Survival") {
-        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.45)));
+        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4665)));
         drawMCText("Search for resources, crafting, gain", ImVec4(134, 132, 131, 255));
-        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4775)));
+        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4915)));
         drawMCText("levels, health and hunger", ImVec4(134, 132, 131, 255));
     }
 
     if (selectedGameMode == "Creative") {
-        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.45)));
+        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4665)));
         drawMCText("Unlimited Resources, free flying and", ImVec4(134, 132, 131, 255));
-        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4775)));
+        ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.4915)));
         drawMCText("destroy blocks instantly", ImVec4(134, 132, 131, 255));
     }
 
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - windowWidth / 3.25 / 2), static_cast<float>(windowHeight * 0.7)));
-    if (minecraftButton("More World Options...", ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (minecraftButton("More World Options...", ImVec2(static_cast<float>(windowWidth / 3.25), m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::MoreWorldOptionsScreen;
     }
 
     ImGui::SetCursorPos(ImVec2(centerX - (windowWidth / 3) - spacing, static_cast<float>(windowHeight * 0.9)));
-    if (minecraftButton("Create World", ImVec2(windowWidth / 3, 55))) {
+    if (minecraftButton("Create World", ImVec2(windowWidth / 3, m_ButtonHeight))) {
 
         if (m_SeedStringInput.empty()) {
             m_SeedInput = false;
@@ -1036,7 +1076,7 @@ void UIManager::drawCreateNewWorldScreen() {
     }
     ImGui::SetCursorPos(ImVec2(centerX + spacing, static_cast<float>(windowHeight * 0.9)));
 
-    if (minecraftButton("Cancel", ImVec2(windowWidth / 3, 55))) {
+    if (minecraftButton("Cancel", ImVec2(windowWidth / 3, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
         m_SeedStringInput = "";
         worldName = "New World";
@@ -1064,9 +1104,9 @@ void UIManager::drawMoreWorldOptionsScreen() {
     const float windowHeight {ImGui::GetWindowSize().y};
 
     const float centerX {windowWidth / 2.0f};
-    constexpr float spacing {20.0f};
+    const float spacing {20.0f * m_Scale};
 
-    ImGui::SetWindowFontScale(1.2f);
+    ImGui::SetWindowFontScale(m_Scale * 1.15f);
     const ImVec2 cNWSize {ImGui::CalcTextSize("Create New World")};
 
     std::string worldName {config::LevelData::get().getCurrentWorldName()};
@@ -1075,25 +1115,25 @@ void UIManager::drawMoreWorldOptionsScreen() {
 
     ImGui::SetCursorPos(ImVec2(centerX - (cNWSize.x / 2), static_cast<float>(windowHeight * 0.07)));
     drawMCText("Create New World");
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetWindowFontScale(m_Scale);
 
     ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.215)));
     drawMCText("Seed for the World Generator", ImVec4(134, 132, 131, 255));
-    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.29) + 15));
+    ImGui::SetCursorPos(ImVec2(windowWidth / 2 - (windowWidth / 4), static_cast<float>(windowHeight * 0.29) + 15 * m_Scale));
     drawMCText("Leave blank for a random seed", ImVec4(134, 132, 131, 255));
 
     ImGui::SetCursorPosX(centerX - (windowWidth / 2) / 2);
     ImGui::SetCursorPosY(static_cast<float>(windowHeight * 0.25));
 
-    minecraftTextInput("##seed", m_SeedStringInput, ImVec2(windowWidth / 2, 55));
+    minecraftTextInput("##seed", m_SeedStringInput, ImVec2(windowWidth / 2, m_ButtonHeight));
 
     ImGui::SetCursorPos(ImVec2(static_cast<float>(centerX - (windowWidth / 3.25) / 2), static_cast<float>(windowHeight * 0.7)));
-    if (minecraftButton("Done", ImVec2(static_cast<float>(windowWidth / 3.25), 55))) {
+    if (minecraftButton("Done", ImVec2(static_cast<float>(windowWidth / 3.25), m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::CreateNewWorldScreen;
     }
 
     ImGui::SetCursorPos(ImVec2(centerX - (windowWidth / 3) - spacing, static_cast<float>(windowHeight * 0.9)));
-    if (minecraftButton("Create World", ImVec2(windowWidth / 3, 55))) {
+    if (minecraftButton("Create World", ImVec2(windowWidth / 3, m_ButtonHeight))) {
 
         if (m_SeedStringInput.empty()) {
             m_SeedInput = false;
@@ -1164,7 +1204,7 @@ void UIManager::drawMoreWorldOptionsScreen() {
     }
 
     ImGui::SetCursorPos(ImVec2(centerX + spacing, static_cast<float>(windowHeight * 0.9)));
-    if (minecraftButton("Cancel", ImVec2(windowWidth / 3, 55))) {
+    if (minecraftButton("Cancel", ImVec2(windowWidth / 3, m_ButtonHeight))) {
         s_CurrentScreen = ScreenState::SingleplayerScreen;
         m_SeedStringInput = "";
         worldName = "New World";
@@ -1172,6 +1212,65 @@ void UIManager::drawMoreWorldOptionsScreen() {
 
     config::LevelData::get().setCurrentWorldName(worldName);
 
+    ImGui::PopFont();
+    ImGui::End();
+}
+
+void UIManager::drawPauseMenuScreen() {
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(getIO().DisplaySize);
+    ImGui::Begin("PauseScreen", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoScrollbar);
+
+    ImGui::PushFont(s_McFont);
+
+    const float windowWidth {ImGui::GetWindowSize().x};
+    const float buttonWidth {600.0f * m_Scale};
+
+    ImGui::SetWindowFontScale(m_Scale * 1.15f);
+
+    constexpr auto title {"Game Menu"};
+    const ImVec2 textSize {ImGui::CalcTextSize(title)};
+
+    const float centerX {(windowWidth - textSize.x) * 0.5f};
+
+    ImGui::SetCursorPosX(centerX);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.45f);
+    drawMCText(title);
+    ImGui::SetWindowFontScale(m_Scale);
+
+    ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.5f);
+
+    if (minecraftButton("Resume", ImVec2(buttonWidth, m_ButtonHeight))) {
+        s_CurrentScreen = ScreenState::InGame;
+    }
+
+    ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+    if (minecraftButton("Options", ImVec2(buttonWidth, m_ButtonHeight))) {
+        s_CurrentScreen = ScreenState::OptionsScreen;
+    }
+
+    ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+    if (minecraftButton("Save and Quit", ImVec2(buttonWidth, m_ButtonHeight))) {
+        // for (auto const& [coords, chunk] : worldMap) {
+        //     if (chunk->modified) saveChunk(coords.first, coords.second, chunk);
+        // }
+        // backgroundScreen = false;
+        // titleScreen = true;
+        // pauseScreen = false;
+        // fromPauseMenu = false;
+        // saveLevel();
+        // resetPlayerState();
+        // hasPlayerPos = false;
+        // selectedWorld = "";
+        // currentWorldName = "";
+        s_CurrentScreen = ScreenState::SingleplayerScreen;
+    }
     ImGui::PopFont();
     ImGui::End();
 }

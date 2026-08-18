@@ -10,6 +10,10 @@ class WindowManager {
     bool m_LastFullscreenState {};
 public:
     [[nodiscard]] GLFWwindow* getWindow() const {return m_Window;}
+
+    static void framebufferSizeCallback(GLFWwindow* /*window*/, const int width, int height) {
+        if (height == 0) height = 1; glViewport(0, 0, width, height);}
+
     void initWindow();
     void checkWindowState();
 };
