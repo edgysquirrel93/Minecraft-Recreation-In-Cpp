@@ -31,8 +31,12 @@ public:
 };
 
 class Rendering {
+    glm::mat4 m_View;
 public:
-    static void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
+    void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
+
+    [[nodiscard]] glm::mat4 getViewMatrix() const {return m_View;}
+    void setViewMatrix(const glm::mat4& v) {m_View = v;}
 };
 
 } // engine::rendering

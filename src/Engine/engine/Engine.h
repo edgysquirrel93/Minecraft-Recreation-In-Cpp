@@ -13,6 +13,7 @@ class Engine {
     window::WindowManager m_WindowInstance;
     config::SettingsManager m_Settings;
     sound::Sound m_Sound;
+    rendering::Rendering m_Rendering{};
     std::unique_ptr<rendering::ShaderManager> m_ShaderManager;
     std::chrono::steady_clock::time_point m_LastFrameTime;
 

@@ -6,9 +6,12 @@ project(Minecraft_Recreation_Recreation)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.2/assets.zip")
+set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.1/assets.zip")
+set(SHADERS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.2/assets.zip")
 set(ASSET_ZIP_PATH "${CMAKE_BINARY_DIR}/assets.zip")
+set(SHADERS_ZIP_PATH "${CMAKE_BINARY_DIR}/assets/Shaders.zip")
 set(ASSET_EXTRACT_DIR "${CMAKE_BINARY_DIR}/assets")
+set(SHADERS_EXTRACT_DIR "${CMAKE_BINARY_DIR}/assets/Shaders")
 
 if(NOT EXISTS "${ASSET_EXTRACT_DIR}")
     message(STATUS "Assets not found! Downloading from ${ASSET_URL}...")
@@ -29,6 +32,28 @@ if(NOT EXISTS "${ASSET_EXTRACT_DIR}")
         file(REMOVE "${ASSET_ZIP_PATH}")
     else()
         message(FATAL_ERROR "Failed to download assets: ${status_message}")
+    endif()
+endif()
+
+if(NOT EXISTS "${SHADERS_EXTRACT_DIR}")
+    message(STATUS "Shaders not found! Downloading from ${SHADERS_URL}...")
+
+    file(DOWNLOAD "${SHADERS_URL}" "${SHADERS_ZIP_PATH}"
+            SHOW_PROGRESS
+            STATUS download_status
+    )
+
+    list(GET download_status 0 status_code)
+    list(GET download_status 1 status_message)
+
+    if(status_code EQUAL 0)
+        message(STATUS "Download complete! Extracting to ${SHADERS_EXTRACT_DIR}")
+
+        file(ARCHIVE_EXTRACT INPUT "${SHADERS_ZIP_PATH}" DESTINATION "${CMAKE_BINARY_DIR}")
+
+        file(REMOVE "${SHADERS_ZIP_PATH}")
+    else()
+        message(FATAL_ERROR "Failed to download shaders: ${status_message}")
     endif()
 endif()
 

@@ -9,6 +9,9 @@ class Texture {
     unsigned int m_Id{};
 public:
     void loadTexture(const std::string& path, GLenum filtering = GL_NEAREST);
+
+    void setId(const unsigned int id) {m_Id = id;}
+
     explicit operator unsigned int() const {return m_Id;}
 };
 
@@ -28,9 +31,8 @@ struct UITexture {
     Texture dirt_ui;
 };
 
-struct BlockTexture
-{
-    Texture dirt;
+struct BlockTexture {
+     Texture atlas;
 };
 
 class LoadTexture {
@@ -38,6 +40,7 @@ public:
     inline static UITexture ui;
     inline static BlockTexture block;
 
+    static void loadAtlas();
     static void loadAllTextures();
 };
 

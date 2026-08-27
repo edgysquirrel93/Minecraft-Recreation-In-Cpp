@@ -1,6 +1,7 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_UIMANAGER_H
 #define MINECRAFT_RECREATION_RECREATION_UIMANAGER_H
 
+#include <bitset>
 #include <GLFW/glfw3.h>
 
 #include "imgui.h"
@@ -18,24 +19,37 @@ enum class ScreenState {
     RenameWorldScreen,
     CreateNewWorldScreen,
     MoreWorldOptionsScreen,
-    PauseMenuScreen
+    PauseMenuScreen,
+};
+
+// enum class ModalScreen {
+//     None,
+//     PauseMenu,
+//     Inventory,
+//     Chest
+// };
+
+enum OverlayFlags {
+    DebugScreen,
+    Overlay_Count
 };
 
 class UIManager {
     static UIManager* s_Instance;
+    inline static std::bitset<Overlay_Count> s_ActiveOverlays;
     // private variables
     inline static ImFont* s_McFont {nullptr};
     inline static GLFWwindow* s_GlfwWindow {nullptr};
 
     inline static auto s_CurrentScreen{ScreenState::MainMenu};
-    inline static std::string m_SelectedWorld;
-    inline static bool m_RenameInitReq;
-    inline static std::string m_SeedStringInput;
-    inline static bool m_SeedInput {false};
+    inline static std::string s_SelectedWorld;
+    inline static bool s_RenameInitReq;
+    inline static std::string s_SeedStringInput;
+    inline static bool s_SeedInput {false};
 
     // UI Sizes
-    inline static float m_Scale {1.0f};
-    inline static float m_ButtonHeight {55.0f};
+    inline static float s_Scale {1.0f};
+    inline static float s_ButtonHeight {55.0f};
 
     // private functions
     static ImGuiIO& getIO() {return ImGui::GetIO();}
@@ -57,6 +71,7 @@ class UIManager {
     static void drawCreateNewWorldScreen();
     static void drawMoreWorldOptionsScreen();
     static void drawPauseMenuScreen();
+    static void drawDebugMenuScreen();
 
     public:
     UIManager();
@@ -70,10 +85,13 @@ class UIManager {
     static void shutdown();
 
     // setters/getters
-    static bool getSeedInput() {return m_SeedInput;}
-    static void setSeedInput(const bool s) {m_SeedInput = s;}
+    static bool getSeedInput() {return s_SeedInput;}
+    static void setSeedInput(const bool s) {s_SeedInput = s;}
     static ScreenState getCurrentScreen() {return s_CurrentScreen;}
     static void setCurrentScreen(const ScreenState c) {s_CurrentScreen = c;}
+    static void toggleOverlay(const OverlayFlags flag) { s_ActiveOverlays.flip(flag); }
+    static void disableOverlay(const OverlayFlags flag) { s_ActiveOverlays.set(flag, false);}
+    static bool isOverlayActive(const OverlayFlags flag) { return s_ActiveOverlays.test(flag); }
 };
 
 } // engine::ui

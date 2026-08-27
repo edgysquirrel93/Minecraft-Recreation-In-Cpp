@@ -113,4 +113,14 @@ namespace engine::meshdata
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
         glEnableVertexAttribArray(1);
     }
+
+UVCoord MeshData::getTileUV(const int col, const int row) {
+    constexpr float tileSize = 0.25f;
+    return {
+        .u1 = static_cast<float>(col) * tileSize,         // u1
+        .v1 = static_cast<float>(row) * tileSize,         // v1
+        .u2 = static_cast<float>(col + 1) * tileSize,     // u2
+        .v2 = static_cast<float>(row + 1) * tileSize      // v2
+    };
+}
 } // engine::meshdata

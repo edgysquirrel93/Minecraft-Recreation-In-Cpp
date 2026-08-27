@@ -14,6 +14,9 @@ public:
     static void framebufferSizeCallback(GLFWwindow* /*window*/, const int width, int height) {
         if (height == 0) height = 1; glViewport(0, 0, width, height);}
 
+    [[nodiscard]] int getWindowHeight() const {int width, height; glfwGetWindowSize(getWindow(), &width, &height); return height;}
+    [[nodiscard]] int getWindowWidth() const {int width, height; glfwGetWindowSize(getWindow(), &width, &height); return width;}
+
     void initWindow();
     void checkWindowState();
 };

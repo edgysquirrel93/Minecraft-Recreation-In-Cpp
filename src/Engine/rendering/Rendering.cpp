@@ -3,6 +3,7 @@
 #include "Engine/texture/Texture.h"
 #include "Engine/window/WindowManager.h"
 #include "Engine/config/SettingsManager.h"
+#include "Engine/player/Input.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace engine::rendering
@@ -16,8 +17,8 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
 
     if (const auto* mainShader = shaderManager.get("main")) {
         mainShader->use();
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture::LoadTexture::block.dirt));
-        mainShader->setInt("dirt", 0);
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture::LoadTexture::block.atlas));
+        mainShader->setInt("atlas", 0);
 
         glfwGetFramebufferSize(window, &width, &height);
 
@@ -29,8 +30,8 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         constexpr auto cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
         constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
 
-        const glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, upVector);
-        mainShader->setMat4("view", view);
+        m_View = glm::lookAt(cameraPos, input::Camera::getFront(), upVector);
+        mainShader->setMat4("view", m_View);
         auto model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.0f));
         constexpr float angle = 20.0f;
