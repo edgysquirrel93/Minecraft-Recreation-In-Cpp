@@ -116,6 +116,9 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/meshdata/MeshData.h
         src/Engine/player/Input.cpp
         src/Engine/player/Input.h
+        src/Engine/texture/Block.h
+        src/Engine/worldgen/ChunkRendering.cpp
+        src/Engine/worldgen/ChunkRendering.h
 )
 
 FetchContent_GetProperties(imgui)

@@ -42,6 +42,7 @@ void Engine::gameLoop()
         if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame)
         {
             input::Input::processInput(window);
+            input::Player::processMovement(window, deltaTime);
             glEnable(GL_DEPTH_TEST);
             m_Rendering.gameRender(*m_ShaderManager, window);
         }

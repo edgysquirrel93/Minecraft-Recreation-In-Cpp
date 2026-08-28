@@ -11,9 +11,30 @@ public:
     static void processInput(GLFWwindow* window);
     static void enterGameInputMode(GLFWwindow* window);
 };
+
+class Player {
+    static inline float s_TargetFov {};
+    static inline float s_VerticalVelocity {};
+    static inline float s_CoyoteTime {};
+    static inline float s_JumpForce {};
+    static inline float s_Gravity {};
+    static inline float s_CoyoteDuration {};
+    static inline bool s_SpaceWasPressed {false};
+    static inline bool s_IsFlying {false};
+    static inline float s_LastSpaceTime {0.0f};
+    static void processSurvivalMovement(GLFWwindow* window, float deltaTime);
+    static void processCreativeMovement(GLFWwindow* window, float deltaTime);
+
+public:
+
+    static void processMovement(GLFWwindow* window, float deltaTime);
+
+    [[nodiscard]] static float getTargetFov() {return s_TargetFov;}
+};
+
 class Camera {
 
-    static inline glm::vec3 m_Front;
+    static inline glm::vec3 m_CameraView;
 
     static inline bool m_FirstMouse {true};
 
@@ -25,7 +46,7 @@ class Camera {
 public:
     static void mouseCallback(GLFWwindow* /*window*/, double xposIn, double yposIn);
 
-    static glm::vec3 getFront() {return m_Front;}
+    static glm::vec3 getCameraView() {return m_CameraView;}
     static void resetMouseFlag() {m_FirstMouse = false;}
 };
 }

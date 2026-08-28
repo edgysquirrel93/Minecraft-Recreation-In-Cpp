@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "Engine/shaders/shaders.h"
+#include "Engine/texture/Block.h"
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <unordered_map>
@@ -34,6 +35,7 @@ class Rendering {
     glm::mat4 m_View;
 public:
     void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
+    static void drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
 
     [[nodiscard]] glm::mat4 getViewMatrix() const {return m_View;}
     void setViewMatrix(const glm::mat4& v) {m_View = v;}

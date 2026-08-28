@@ -8,6 +8,20 @@
 
 namespace engine::rendering
 {
+
+void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager) {
+    const auto* mainShader {shaderManager.get("main")};
+    if (!mainShader) return;
+
+    const auto model {glm::translate(glm::mat4(1.0f), position)};
+    mainShader->setMat4("model", model);
+
+    glUniform1iv(glGetUniformLocation(mainShader->ID, "u_FaceLayers"), 6, blockType.faceLayers.data());
+
+    glBindVertexArray(meshdata::MeshData::blockVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
 void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
 
     int width, height;
@@ -17,32 +31,37 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
 
     if (const auto* mainShader = shaderManager.get("main")) {
         mainShader->use();
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture::LoadTexture::block.atlas));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, static_cast<GLuint>(texture::LoadTexture::block.atlas));
         mainShader->setInt("atlas", 0);
 
         glfwGetFramebufferSize(window, &width, &height);
 
-        const glm::mat4 projection = glm::perspective(glm::radians(config::SettingsManager::get().getBaseFov()),
-                                                static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+        const glm::mat4 projection {glm::perspective(glm::radians(input::Player::getTargetFov()),
+                        static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f)};
         mainShader->setMat4("projection", projection);
 
-        constexpr auto cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
-        constexpr auto cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
+        // constexpr auto cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
         constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+        const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
+        const glm::vec3 cameraView = input::Camera::getCameraView();
 
-        m_View = glm::lookAt(cameraPos, input::Camera::getFront(), upVector);
+        m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
         mainShader->setMat4("view", m_View);
-        auto model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.0f));
-        constexpr float angle = 20.0f;
-        model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-        mainShader->setMat4("model", model);
-        glBindVertexArray(meshdata::MeshData::blockVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        drawBlock(blockregistry::GRASS, glm::vec3(0.0f, 0.0f, -2.0f), shaderManager);
+
+        drawBlock(blockregistry::DIRT, glm::vec3(1.2f, 0.0f, -2.0f), shaderManager);
+
+        drawBlock(blockregistry::STONE, glm::vec3(2.4f, 0.0f, -2.0f), shaderManager);
     }
 
     if (const auto* crosshairShader = shaderManager.get("crosshair")) {
         glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_ONE, GL_ONE);
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
         float aspect = 1.0f;
@@ -51,6 +70,8 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         crosshairShader->setFloat("aspectRatio", aspect);
         glBindVertexArray(meshdata::MeshData::crossVAO);
         glDrawArrays(GL_TRIANGLES, 0, 12);
+        glDisable(GL_BLEND);
+        glBlendEquation(GL_FUNC_ADD);
         glEnable(GL_DEPTH_TEST);
     }
 }

@@ -42,6 +42,7 @@ class UIManager {
     inline static GLFWwindow* s_GlfwWindow {nullptr};
 
     inline static auto s_CurrentScreen{ScreenState::MainMenu};
+    inline static auto s_LastScreen{ScreenState::MainMenu};
     inline static std::string s_SelectedWorld;
     inline static bool s_RenameInitReq;
     inline static std::string s_SeedStringInput;
@@ -89,6 +90,8 @@ class UIManager {
     static void setSeedInput(const bool s) {s_SeedInput = s;}
     static ScreenState getCurrentScreen() {return s_CurrentScreen;}
     static void setCurrentScreen(const ScreenState c) {s_CurrentScreen = c;}
+    static ScreenState getLastScreen() {return s_LastScreen;}
+    static void setLastScreen(const ScreenState l) {s_LastScreen = l;}
     static void toggleOverlay(const OverlayFlags flag) { s_ActiveOverlays.flip(flag); }
     static void disableOverlay(const OverlayFlags flag) { s_ActiveOverlays.set(flag, false);}
     static bool isOverlayActive(const OverlayFlags flag) { return s_ActiveOverlays.test(flag); }

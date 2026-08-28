@@ -35,12 +35,19 @@ struct BlockTexture {
      Texture atlas;
 };
 
+struct BlockLayer {
+    static constexpr int DIRT       {0};
+    static constexpr int STONE      {1};
+    static constexpr int GRASS_TOP  {2};
+    static constexpr int GRASS_SIDE {3};
+};
+
 class LoadTexture {
 public:
     inline static UITexture ui;
     inline static BlockTexture block;
 
-    static void loadAtlas();
+    static void loadTextureArray();
     static void loadAllTextures();
 };
 

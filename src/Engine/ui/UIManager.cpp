@@ -379,6 +379,7 @@ void UIManager::drawMainMenu() {
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     if (minecraftButton("Options", ImVec2(buttonWidth, s_ButtonHeight))) {
         s_CurrentScreen = ScreenState::OptionsScreen;
+        s_LastScreen = ScreenState::MainMenu;
     }
 
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
@@ -648,6 +649,7 @@ void UIManager::drawSingleplayerScreen() {
         //         startWorldLoad(nameToLoad);
         //     }).detach();
         // }
+        config::LevelData::get().loadLevel();
         input::Input::enterGameInputMode(s_GlfwWindow);
     }
 
@@ -826,7 +828,7 @@ void UIManager::drawOptionsScreen()
 
     if (minecraftButton("Done", ImVec2(500 * s_Scale, s_ButtonHeight))) {
         config::SettingsManager::get().save();
-        s_CurrentScreen = ScreenState::MainMenu;
+        s_CurrentScreen = s_LastScreen;
     }
 
     ImGui::PopFont();
@@ -1061,6 +1063,8 @@ void UIManager::drawCreateNewWorldScreen() {
         s_SeedStringInput = "";
         config::LevelData::get().setCurrentWorldName(worldName);
         config::LevelData::get().saveLevel();
+        config::LevelData::get().loadLevel();
+        s_CurrentScreen = ScreenState::InGame;
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1189,6 +1193,8 @@ void UIManager::drawMoreWorldOptionsScreen() {
         s_SeedStringInput = "";
         config::LevelData::get().setCurrentWorldName(worldName);
         config::LevelData::get().saveLevel();
+        config::LevelData::get().loadLevel();
+        s_CurrentScreen = ScreenState::InGame;
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1280,6 +1286,7 @@ void UIManager::drawPauseMenuScreen() {
         // selectedWorld = "";
         // currentWorldName = "";
         s_CurrentScreen = ScreenState::SingleplayerScreen;
+        config::LevelData::get().saveLevel();
     }
     ImGui::PopFont();
     ImGui::End();
@@ -1319,7 +1326,7 @@ void UIManager::drawDebugMenuScreen() {
         drawMCText("(fps: " + std::to_string(static_cast<int>(fps)) + ")");
 
         const long long seed {config::LevelData::get().getSeed()};
-        const glm::vec3 cameraPos {input::Camera::getFront()};
+        const glm::vec3 cameraPos {config::LevelData::get().getCameraPos()};
 
         ImGui::SetCursorPos(ImVec2(10, 26));
         drawMCText("x: " + std::to_string(cameraPos.x));

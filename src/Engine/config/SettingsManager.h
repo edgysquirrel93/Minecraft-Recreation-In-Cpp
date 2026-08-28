@@ -16,6 +16,7 @@ class SettingsManager {
     int   m_RenderDistance {12};
     bool  m_FullscreenBool {false};
     float m_GuiScale       {1.0f};
+
 public:
     explicit SettingsManager(const std::string& path)
         : m_Filename((getSaveDirectory() / path).string()) { s_Instance = this; }
@@ -73,7 +74,9 @@ public:
     [[nodiscard]] std::string getCurrentWorldName() const { return m_CurrentWorldName; }
     void setCurrentWorldName(const std::string& name) { m_CurrentWorldName = name; }
     [[nodiscard]] bool getCreativeModeBool() const { return m_CreativeMode; }
-    void setCreativeModeBool(const bool f) {m_CreativeMode = f;}
+    void setCreativeModeBool(const bool c) {m_CreativeMode = c;}
+    [[nodiscard]] glm::vec3 getCameraPos() const {return m_CameraPos;}
+    void setCameraPos(const glm::vec3 c) {m_CameraPos = c;}
 };
 
 } // engine::config
