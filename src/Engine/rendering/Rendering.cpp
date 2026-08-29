@@ -6,6 +6,8 @@
 #include "Engine/player/Input.h"
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Engine/worldgen/ChunkRendering.h"
+
 namespace engine::rendering
 {
 
@@ -16,7 +18,9 @@ void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position,
     const auto model {glm::translate(glm::mat4(1.0f), position)};
     mainShader->setMat4("model", model);
 
-    glUniform1iv(glGetUniformLocation(mainShader->ID, "u_FaceLayers"), 6, blockType.faceLayers.data());
+    if (const GLint loc {glGetUniformLocation(mainShader->ID, "u_FaceLayers")}; loc != -1) {
+        glUniform1iv(loc, 6, blockType.faceLayers.data());
+    }
 
     glBindVertexArray(meshdata::MeshData::blockVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -36,6 +40,12 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         glBindTexture(GL_TEXTURE_2D_ARRAY, static_cast<GLuint>(texture::LoadTexture::block.atlas));
         mainShader->setInt("atlas", 0);
 
+
+        if (m_Chunk.isDirty()) {
+            m_Chunk.rebuildMesh();
+            m_Chunk.clearDirty();
+        }
+
         glfwGetFramebufferSize(window, &width, &height);
 
         const glm::mat4 projection {glm::perspective(glm::radians(input::Player::getTargetFov()),
@@ -45,16 +55,49 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         // constexpr auto cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
         constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
         const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
-        const glm::vec3 cameraView = input::Camera::getCameraView();
+        const glm::vec3 cameraView = input::Camera::getCameraFront();
 
         m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
         mainShader->setMat4("view", m_View);
 
-        drawBlock(blockregistry::GRASS, glm::vec3(0.0f, 0.0f, -2.0f), shaderManager);
+        static bool initialized {false};
+        if (!initialized) {
+            m_Chunk.generateTestChunk();
+            initialized = true;
+        }
 
-        drawBlock(blockregistry::DIRT, glm::vec3(1.2f, 0.0f, -2.0f), shaderManager);
+        const auto& blocks = m_Chunk.getTestBlocks();
 
-        drawBlock(blockregistry::STONE, glm::vec3(2.4f, 0.0f, -2.0f), shaderManager);
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                for (int y = 0; y < 256; y++) {
+                    if (const BlockType& blockType = blocks[x][y][z]; blockType != blockregistry::AIR) {
+                        drawBlock(blockType, glm::vec3(x, y, z), shaderManager);
+                    }
+                }
+            }
+        }
+
+        if (const auto raycast = input::Camera::raycast(config::LevelData::get().getCameraPos(),
+            input::Camera::getCameraFront(), 5.0f, m_Chunk); raycast.hit)
+        {
+            glm::mat4 model {glm::translate(glm::mat4(1.0f), glm::vec3(raycast.blockPos))};
+
+            constexpr float s {1.002f};
+            constexpr float offset {(1.0f - s) / 2.0f};
+            model = glm::translate(model, glm::vec3(offset));
+            model = glm::scale(model, glm::vec3(s));
+
+            mainShader->setBool("isSelection", true);
+            mainShader->setVec3("overrideColor", glm::vec3(0.0f, 0.0f, 0.0f));
+            mainShader->setMat4("model", model);
+
+            glBindVertexArray(meshdata::MeshData::selVAO);
+            glLineWidth(2.5f);
+            glDrawArrays(GL_LINES, 0, 24);
+
+            mainShader->setBool("isSelection", false);
+            }
     }
 
     if (const auto* crosshairShader = shaderManager.get("crosshair")) {

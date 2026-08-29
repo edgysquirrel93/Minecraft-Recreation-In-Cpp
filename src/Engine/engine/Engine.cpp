@@ -15,6 +15,7 @@ void Engine::initSystems() {
     m_ShaderManager = std::make_unique<rendering::ShaderManager>();
     m_Sound.init();
     meshdata::MeshData::Init();
+    input::Player::init(&m_Rendering.getChunk());
     texture::LoadTexture::loadAllTextures();
     ui::UIManager::init(m_WindowInstance.getWindow());
     m_LastFrameTime = std::chrono::steady_clock::now();

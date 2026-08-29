@@ -1,6 +1,6 @@
 #include "Input.h"
 
-#include <iostream>
+#include <glm/gtx/norm.hpp>
 
 #include "Engine/ui/UIManager.h"
 #include "Engine/config/SettingsManager.h"
@@ -46,9 +46,11 @@ void Input::enterGameInputMode(GLFWwindow* window)
 }
 
 void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) {
+    if (!s_ActiveChunk) return;
+
     glm::vec3 moveDir {};
     float speed {4.317f * deltaTime};
-    const glm::vec3 cameraFront = Camera::getCameraView();
+    const glm::vec3 cameraFront = Camera::getCameraFront();
 
     auto flatFront = glm::vec3(cameraFront.x, 0.0f, cameraFront.z);
     if (glm::length(flatFront) > 0.0001f) {
@@ -94,6 +96,21 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) 
 
     if (currentFov < 30.0f) currentFov = 30.0f;
     if (currentFov > 150.0f) currentFov = 150.0f;
+
+    auto [hit, blockPos, placePos] {Camera::raycast(config::LevelData::get().getCameraPos(),
+Camera::getCameraFront(), 5.0f, *s_ActiveChunk)};
+
+
+    bool currentLeft = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    if (currentLeft && !s_LeftMousePressed) {
+        if (hit) {
+            std::cout << "Hit block at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z << "\n";
+            s_ActiveChunk->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::AIR);
+        } else {
+            std::cout << "Raycast missed or out of range\n";
+        }
+    }
+    s_LeftMousePressed = currentLeft;
 }
 
 void Player::processCreativeMovement(GLFWwindow* window, const float deltaTime) {
@@ -184,6 +201,69 @@ void Camera::mouseCallback(GLFWwindow* /*window*/, const double xposIn, const do
     front.y = static_cast<float>(sin(glm::radians(m_Pitch)));
     front.z = static_cast<float>(sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)));
 
-    m_CameraView = glm::normalize(front);
+    m_CameraFront = glm::normalize(front);
+}
+
+Camera::RaycastResult Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::ChunkRendering& chunk) {
+    RaycastResult result;
+    if (glm::length2(dir) < 0.0001f) return result;
+
+    dir = glm::normalize(dir);
+
+    int x {static_cast<int>(std::floor(start.x))};
+    int y {static_cast<int>(std::floor(start.y))};
+    int z {static_cast<int>(std::floor(start.z))};
+
+    int stepX {(dir.x > 0) ? 1 : -1};
+    int stepY {(dir.y > 0) ? 1 : -1};
+    int stepZ {(dir.z > 0) ? 1 : -1};
+
+    float tMaxX {(stepX > 0) ? (std::floor(start.x) + 1.0f - start.x) / dir.x : (start.x - std::floor(start.x)) / -dir.x};
+    float tMaxY {(stepY > 0) ? (std::floor(start.y) + 1.0f - start.y) / dir.y : (start.y - std::floor(start.y)) / -dir.y};
+    float tMaxZ {(stepZ > 0) ? (std::floor(start.z) + 1.0f - start.z) / dir.z : (start.z - std::floor(start.z)) / -dir.z};
+
+    float tDeltaX {(dir.x != 0) ? std::abs(1.0f / dir.x) : 1e30f};
+    float tDeltaY {(dir.y != 0) ? std::abs(1.0f / dir.y) : 1e30f};
+    float tDeltaZ {(dir.z != 0) ? std::abs(1.0f / dir.z) : 1e30f};
+
+    glm::ivec3 lastNormal(0);
+    float travelled {0.0f};
+
+    while (travelled < maxDist) {
+        // FIX: Read from the passed 'chunk' reference, NOT a local object!
+        if (chunk.getBlockAt(x, y, z) != blockregistry::AIR) {
+            result.hit = true;
+            result.blockPos = glm::ivec3(x, y, z);
+            result.placePos = result.blockPos - lastNormal;
+            return result;
+        }
+
+        if (tMaxX < tMaxY) {
+            if (tMaxX < tMaxZ) {
+                travelled = tMaxX;
+                tMaxX += tDeltaX;
+                x += stepX;
+                lastNormal = glm::ivec3(stepX, 0, 0);
+            } else {
+                travelled = tMaxZ;
+                tMaxZ += tDeltaZ;
+                z += stepZ;
+                lastNormal = glm::ivec3(0, 0, stepZ);
+            }
+        } else {
+            if (tMaxY < tMaxZ) {
+                travelled = tMaxY;
+                tMaxY += tDeltaY;
+                y += stepY;
+                lastNormal = glm::ivec3(0, stepY, 0);
+            } else {
+                travelled = tMaxZ;
+                tMaxZ += tDeltaZ;
+                z += stepZ;
+                lastNormal = glm::ivec3(0, 0, stepZ);
+            }
+        }
+    }
+    return result;
 }
 }

@@ -49,11 +49,11 @@ public:
 
 class LevelData {
 
-    long long m_Seed = 0;
+    long long m_Seed {0};
     std::string m_CurrentWorldName;
-    glm::vec3 m_CameraPos{0.0f, 0.0f, 0.0f};
-    bool m_HasPlayerPos = false;
-    bool m_CreativeMode = false;
+    glm::vec3 m_CameraPos{8.0f, 18.0f, 8.0f};
+    bool m_HasPlayerPos {false};
+    bool m_CreativeMode {false};
     std::string m_LastPlayed{};
 
     LevelData() = default;

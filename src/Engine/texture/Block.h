@@ -7,10 +7,17 @@
 struct BlockType {
     std::string name;
     std::array<int, 6> faceLayers; // Back, Front, Left, Right, Bottom, Top
+    bool operator==(const BlockType& other) const {return name == other.name;}
+    bool operator!=(const BlockType& other) const {return !(*this == other);}
 };
 
 namespace engine::blockregistry {
     using namespace engine::texture;
+
+    inline const BlockType AIR = {
+        .name = "Air",
+        .faceLayers = {-1, -1, -1, -1, -1, -1} // no visible face
+    };
 
     inline const BlockType DIRT = {
         .name = "Dirt",

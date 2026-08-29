@@ -8,6 +8,8 @@
 #include <memory>
 #include <unordered_map>
 
+#include "Engine/worldgen/ChunkRendering.h"
+
 namespace engine::rendering
 {
 
@@ -32,11 +34,14 @@ public:
 };
 
 class Rendering {
-    glm::mat4 m_View;
+    glm::mat4 m_View {};
+    worldgen::ChunkRendering m_Chunk;
 public:
     void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
     static void drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
 
+    [[nodiscard]] worldgen::ChunkRendering& getChunk() { return m_Chunk; }
+    [[nodiscard]] const worldgen::ChunkRendering& getChunk() const { return m_Chunk; }
     [[nodiscard]] glm::mat4 getViewMatrix() const {return m_View;}
     void setViewMatrix(const glm::mat4& v) {m_View = v;}
 };

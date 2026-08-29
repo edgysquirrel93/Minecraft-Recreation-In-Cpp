@@ -93,6 +93,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+add_compile_definitions(GLFW_INCLUDE_NONE)
+
 add_executable(Minecraft_Recreation_Recreation
         src/main.cpp
         src/Engine/ui/UIManager.cpp
