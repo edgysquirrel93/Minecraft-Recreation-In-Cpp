@@ -27,7 +27,12 @@ void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position,
 }
 
 void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
+    renderMainShader(shaderManager, window);
+    renderCrosshair(shaderManager, window);
+    renderSelectionBox(shaderManager, window);
+}
 
+void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* window) {
     int width, height;
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -40,6 +45,11 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         glBindTexture(GL_TEXTURE_2D_ARRAY, static_cast<GLuint>(texture::LoadTexture::block.atlas));
         mainShader->setInt("atlas", 0);
 
+        static bool initialized {false};
+        if (!initialized) {
+            m_Chunk.generateTestChunk();
+            initialized = true;
+        }
 
         if (m_Chunk.isDirty()) {
             m_Chunk.rebuildMesh();
@@ -48,11 +58,12 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
 
         glfwGetFramebufferSize(window, &width, &height);
 
-        const glm::mat4 projection {glm::perspective(glm::radians(input::Player::getTargetFov()),
-                        static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f)};
+        const glm::mat4 projection {glm::perspective(
+                glm::radians(input::Player::getTargetFov()),
+                    static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
+                    0.1f, 100.0f)};
         mainShader->setMat4("projection", projection);
 
-        // constexpr auto cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
         constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
         const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
         const glm::vec3 cameraView = input::Camera::getCameraFront();
@@ -60,51 +71,23 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
         mainShader->setMat4("view", m_View);
 
-        static bool initialized {false};
-        if (!initialized) {
-            m_Chunk.generateTestChunk();
-            initialized = true;
+        mainShader->setMat4("model", glm::mat4(1.0f));
+
+        if (m_Chunk.getVertex() > 0) {
+            glBindVertexArray(m_Chunk.getVAO());
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<int>(m_Chunk.getVertex()));
         }
-
-        const auto& blocks = m_Chunk.getTestBlocks();
-
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                for (int y = 0; y < 256; y++) {
-                    if (const BlockType& blockType = blocks[x][y][z]; blockType != blockregistry::AIR) {
-                        drawBlock(blockType, glm::vec3(x, y, z), shaderManager);
-                    }
-                }
-            }
-        }
-
-        if (const auto raycast = input::Camera::raycast(config::LevelData::get().getCameraPos(),
-            input::Camera::getCameraFront(), 5.0f, m_Chunk); raycast.hit)
-        {
-            glm::mat4 model {glm::translate(glm::mat4(1.0f), glm::vec3(raycast.blockPos))};
-
-            constexpr float s {1.002f};
-            constexpr float offset {(1.0f - s) / 2.0f};
-            model = glm::translate(model, glm::vec3(offset));
-            model = glm::scale(model, glm::vec3(s));
-
-            mainShader->setBool("isSelection", true);
-            mainShader->setVec3("overrideColor", glm::vec3(0.0f, 0.0f, 0.0f));
-            mainShader->setMat4("model", model);
-
-            glBindVertexArray(meshdata::MeshData::selVAO);
-            glLineWidth(2.5f);
-            glDrawArrays(GL_LINES, 0, 24);
-
-            mainShader->setBool("isSelection", false);
-            }
     }
+}
+
+void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window) {
+
+    int width, height;
 
     if (const auto* crosshairShader = shaderManager.get("crosshair")) {
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glBlendFunc(GL_ONE, GL_ONE);
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
         float aspect = 1.0f;
@@ -116,6 +99,39 @@ void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
         glDisable(GL_BLEND);
         glBlendEquation(GL_FUNC_ADD);
         glEnable(GL_DEPTH_TEST);
+    }
+}
+
+void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window) {
+    if (const auto* selectionBoxShader = shaderManager.get("selectionBox")) {
+        selectionBoxShader->use();
+
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        const glm::mat4 projection = glm::perspective(
+            glm::radians(input::Player::getTargetFov()),
+            static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
+            0.1f, 100.0f
+        );
+
+        selectionBoxShader->setMat4("projection", projection);
+        selectionBoxShader->setMat4("view", m_View);
+
+        if (const auto raycast = input::Camera::raycast(config::LevelData::get().getCameraPos(),
+            input::Camera::getCameraFront(), 5.0f, m_Chunk); raycast.hit) {
+
+            glm::vec3 blockCenter = glm::vec3(raycast.blockPos) + glm::vec3(0.5f);
+
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), blockCenter);
+            model = glm::scale(model, glm::vec3(1.002f));
+
+            selectionBoxShader->setMat4("model", model);
+            selectionBoxShader->setVec3("color", glm::vec3(0.0f, 0.0f, 0.0f));
+
+            glBindVertexArray(meshdata::MeshData::selVAO);
+            glLineWidth(2.5f);
+            glDrawArrays(GL_LINES, 0, 24);
+            }
     }
 }
 } // engine::rendering

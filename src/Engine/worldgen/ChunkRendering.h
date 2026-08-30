@@ -7,7 +7,7 @@
 namespace engine::worldgen
 {
 class ChunkRendering {
-    BlockType m_TestBlocks[16][256][16] {{{}}};
+    std::array<uint8_t, 16 * 256 * 16> m_BlockIDs{};
     bool m_IsDirty{false};
 
     struct Vertex {
@@ -33,13 +33,17 @@ public:
     void rebuildMesh();
     static void addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, int face, const BlockType& block);
 
-    BlockType getBlockAt(int x, int y, int z);
-    void setBlock(int x, int y, int z, const BlockType& block);
+    [[nodiscard]] uint8_t getBlockID(const int x, const int y, const int z) const {
+        if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) return 0; return m_BlockIDs[getIndex(x, y, z)];}
+
+    [[nodiscard]] static constexpr int getIndex(const int x, const int y, const int z) {return x + 16 * (z + 16 * y);}
+
+    [[nodiscard]] const BlockType& getBlockAt(int x, int y, int z) const;
+    void setBlock(int x, int y, int z, uint8_t blockID);
     [[nodiscard]] bool isDirty() const { return m_IsDirty; }
     void clearDirty() { m_IsDirty = false; }
     [[nodiscard]] GLuint getVertex() const { return m_VertexCount; }
-
-    [[nodiscard]] const auto& getTestBlocks() const { return m_TestBlocks; }
+    [[nodiscard]] GLuint getVAO() const { return m_ChunkVAO; }
 };
 }
 

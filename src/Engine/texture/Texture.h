@@ -40,6 +40,7 @@ struct BlockLayer {
     static constexpr int STONE      {1};
     static constexpr int GRASS_TOP  {2};
     static constexpr int GRASS_SIDE {3};
+    static constexpr int BEDROCK    {4};
 };
 
 class LoadTexture {

@@ -5,58 +5,56 @@
 namespace engine::worldgen {
 
 void ChunkRendering::generateTestChunk() {
-    for (auto & m_TestBlock : m_TestBlocks) {
-        for (auto & y : m_TestBlock) {
-            for (auto & z : y) {
-                z = blockregistry::AIR;
-            }
-        }
-    }
+    m_BlockIDs.fill(blockregistry::ID_AIR);
 
-    for (auto & m_TestBlock : m_TestBlocks) {
+    for (int x = 0; x < 16; x++) {
         for (int z = 0; z < 16; z++) {
-            m_TestBlock[16][z] = blockregistry::GRASS;
+            setBlock(x, 64, z, blockregistry::ID_GRASS);
 
-            for (int y = 12; y <= 15; y++) {
-                m_TestBlock[y][z] = blockregistry::DIRT;
+            for (int y = 59; y <= 63; y++) {
+                setBlock(x, y, z, blockregistry::ID_DIRT);
             }
 
-            for (int y = 0; y < 12; y++) {
-                m_TestBlock[y][z] = blockregistry::STONE;
+            for (int y = 6; y <= 58; y++) {
+                setBlock(x, y, z, blockregistry::ID_STONE);
+            }
+
+            for (int y = 0; y <= 5; y++) {
+                setBlock(x, y, z, blockregistry::ID_BEDROCK);
             }
         }
     }
 }
 
-BlockType ChunkRendering::getBlockAt(const int x, const int y, const int z) {
+const BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
     if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) {
         return blockregistry::AIR;
     }
-
-    return m_TestBlocks[x][y][z];
+    const uint8_t id = m_BlockIDs[getIndex(x, y, z)];
+    return blockregistry::get(id);
 }
 
-    void ChunkRendering::setBlock(const int x, const int y, const int z, const BlockType& block) {
-    if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) {
-        return;
+void ChunkRendering::setBlock(const int x, const int y, const int z, const uint8_t blockID) {
+    if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) return;
+
+    if (const int index = getIndex(x, y, z); m_BlockIDs[index] != blockID) {
+        m_BlockIDs[index] = blockID;
+        m_IsDirty = true;
     }
-
-    m_TestBlocks[x][y][z] = block;
-
-    m_IsDirty = true;
 }
 
 void ChunkRendering::rebuildMesh() {
     std::vector<Vertex> vertices;
 
-    for (int x = 0; x < 16; ++x) {
-        for (int y = 0; y < 256; ++y) {
-            for (int z = 0; z < 16; ++z) {
+    for (int x = 0; x < 16; x++) {
+        for (int y = 0; y < 256; y++) {
+            for (int z = 0; z < 16; z++) {
                 BlockType block = getBlockAt(x, y, z);
                 if (block == blockregistry::AIR) continue;
 
                 for (int face = 0; face < 6; ++face) {
-                    if (glm::ivec3 neighborPos = glm::ivec3(x, y, z) + NEIGHBORS[face]; getBlockAt(neighborPos.x, neighborPos.y, neighborPos.z) == blockregistry::AIR) {
+                    if (const glm::ivec3 neighborPos = glm::ivec3(x, y, z) + NEIGHBORS[face];
+                        getBlockAt(neighborPos.x, neighborPos.y, neighborPos.z) == blockregistry::AIR) {
                         addFaceVertices(vertices, glm::vec3(x, y, z), face, block);
                     }
                 }
@@ -105,7 +103,7 @@ void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::v
     };
 
     static constexpr glm::vec2 UVs[4] = {
-        {0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}
+        {0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}
     };
 
     vertices.push_back({ .position = pos + FACE_VERTS[face][0], .texCoords = UVs[0], .texIndex = texLayer });

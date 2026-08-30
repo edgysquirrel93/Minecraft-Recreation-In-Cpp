@@ -105,7 +105,7 @@ Camera::getCameraFront(), 5.0f, *s_ActiveChunk)};
     if (currentLeft && !s_LeftMousePressed) {
         if (hit) {
             std::cout << "Hit block at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z << "\n";
-            s_ActiveChunk->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::AIR);
+            s_ActiveChunk->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
         } else {
             std::cout << "Raycast missed or out of range\n";
         }

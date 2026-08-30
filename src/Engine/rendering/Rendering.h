@@ -21,6 +21,8 @@ public:
                          "assets/Shaders/Fragments/MainShader.fs");
         load("crosshair", "assets/Shaders/Vertices/CrosshairShader.vs",
             "assets/Shaders/Fragments/CrosshairShader.fs");
+        load("selectionBox", "assets/Shaders/Vertices/SelectionBoxShader.vs",
+            "assets/Shaders/Fragments/SelectionBoxShader.fs");
     }
 
     void load(const std::string& name, const std::string& vsPath, const std::string& fsPath) {
@@ -36,6 +38,11 @@ public:
 class Rendering {
     glm::mat4 m_View {};
     worldgen::ChunkRendering m_Chunk;
+
+    // Rendering Shaders
+    void renderMainShader(ShaderManager& shaderManager, GLFWwindow* window);
+    static void renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window);
+    void renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window);
 public:
     void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
     static void drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
