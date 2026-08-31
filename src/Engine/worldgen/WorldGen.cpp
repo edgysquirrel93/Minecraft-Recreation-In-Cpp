@@ -3,11 +3,4 @@
 
 namespace engine::worldgen {
 
-
-
-
-
-
-
-
 } // engine::worldgen

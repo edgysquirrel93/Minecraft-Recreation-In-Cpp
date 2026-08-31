@@ -1,5 +1,6 @@
 #include "Input.h"
 
+#include <cmath>
 #include <glm/gtx/norm.hpp>
 
 #include "Engine/ui/UIManager.h"
@@ -45,8 +46,78 @@ void Input::enterGameInputMode(GLFWwindow* window)
     Camera::resetMouseFlag();
 }
 
+bool Input::grounded(const glm::vec3& pos)
+{
+    constexpr float EYE_HEIGHT {1.62f};
+
+    const int blockX {static_cast<int>(std::floor(pos.x))};
+    const int blockY {static_cast<int>(std::floor(pos.y - EYE_HEIGHT))};
+    const int blockZ {static_cast<int>(std::floor(pos.z))};
+
+    const auto* chunk {config::LevelData::get().getActiveChunk()};
+    if (!chunk) return false;
+
+    return chunk->getBlockAt(blockX, blockY, blockZ) != blockregistry::AIR;
+}
+
+// bool Input::checkCollision(const glm::vec3& pos)
+// {
+//     constexpr float EYE_HEIGHT = 1.62f;
+//
+//     const int blockX {static_cast<int>(std::floor(pos.x))};
+//     const int bottomBlockY {static_cast<int>(std::floor(pos.y - EYE_HEIGHT + 0.5f))};
+//     const int topBlockY {static_cast<int>(std::floor(pos.y - 0.12f))};
+//     const int headBlockY {static_cast<int>(std::floor(pos.y + 0.38f))};
+//     const int blockZ {static_cast<int>(std::floor(pos.z))};
+//
+//     const auto* chunk = config::LevelData::get().getActiveChunk();
+//     if (!chunk) return false;
+//
+//     if ()
+//
+//     if (chunk->getBlockAt)
+//     // check all 4 bottom corners and 4 top corners
+//     for (float dx : {-halfWidth, halfWidth}) {
+//         for (float dz : {-halfWidth, halfWidth}) {
+//             // feet level
+//             if (!isAir((int)floor(x + dx), (int)floor(y - height), (int)floor(z + dz))) return true;
+//             // mid-level
+//             if (!isAir((int)floor(x + dx), (int)floor(y - height * 0.5f), (int)floor(z + dz))) return true;
+//             // head level
+//             if (!isAir((int)floor(x + dx), (int)floor(y), (int)floor(z + dz))) return true;
+//         }
+//     }
+//     return false;
+// }
+
+void Player::processGravity(const float deltaTime) {
+    glm::vec3 cameraPos {config::LevelData::get().getCameraPos()};
+    s_VerticalVelocity += s_Gravity * deltaTime;
+
+    glm::vec3 targetPos = cameraPos;
+    targetPos.y += s_VerticalVelocity * deltaTime;
+
+    if (s_VerticalVelocity <= 0.0f && Input::grounded(targetPos)) {
+        constexpr float EYE_HEIGHT = 1.62f;
+        s_IsGrounded = true;
+        s_CoyoteTime = s_CoyoteDuration;
+
+        const int blockY = static_cast<int>(std::floor(targetPos.y - EYE_HEIGHT));
+        cameraPos.y = static_cast<float>(blockY + 1) + EYE_HEIGHT;
+
+        s_VerticalVelocity = 0.0f;
+    }
+    else {
+        cameraPos.y = targetPos.y;
+        s_IsGrounded = false;
+        s_CoyoteTime -= deltaTime;
+    }
+
+    config::LevelData::get().setCameraPos(cameraPos);
+}
+
 void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) {
-    if (!s_ActiveChunk) return;
+    if (!config::LevelData::get().getActiveChunk()) return;
 
     glm::vec3 moveDir {};
     float speed {4.317f * deltaTime};
@@ -71,7 +142,7 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) 
         moveDir = glm::normalize(moveDir);
 
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            speed *= 2.0f;
+            speed *= 1.3f;
             s_TargetFov = config::SettingsManager::get().getBaseFov() * 1.25f;
         }
 
@@ -97,20 +168,39 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) 
     if (currentFov < 30.0f) currentFov = 30.0f;
     if (currentFov > 150.0f) currentFov = 150.0f;
 
-    auto [hit, blockPos, placePos] {Camera::raycast(config::LevelData::get().getCameraPos(),
-Camera::getCameraFront(), 5.0f, *s_ActiveChunk)};
+    if (!s_IsFlying) {
+        processGravity(deltaTime);
 
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && s_CoyoteTime > 0.0f) {
+            s_VerticalVelocity = s_JumpForce;
+            s_CoyoteTime = 0.0f;
+            s_IsGrounded = false;
+        }
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GRASS;
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_DIRT;
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_STONE;
+    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_BEDROCK;
+
+    auto [pressed, blockPos, placePos] {Camera::raycast(config::LevelData::get().getCameraPos(),
+Camera::getCameraFront(), 5.0f, *config::LevelData::get().getActiveChunk())};
 
     bool currentLeft = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
     if (currentLeft && !s_LeftMousePressed) {
-        if (hit) {
-            std::cout << "Hit block at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z << "\n";
-            s_ActiveChunk->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
-        } else {
-            std::cout << "Raycast missed or out of range\n";
+        if (pressed) {
+            config::LevelData::get().getActiveChunk()->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
         }
     }
     s_LeftMousePressed = currentLeft;
+
+    bool currentRight {glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS};
+    if (currentRight && !s_RightMousePressed) {
+        if (pressed) {
+                config::LevelData::get().getActiveChunk()->setBlock(placePos.x, placePos.y, placePos.z, s_BuildingBlock);
+            }
+        }
+    s_RightMousePressed = currentRight;
 }
 
 void Player::processCreativeMovement(GLFWwindow* window, const float deltaTime) {
@@ -141,7 +231,7 @@ void Player::processCreativeMovement(GLFWwindow* window, const float deltaTime) 
         if (currentSpace && s_CoyoteTime > 0.0f && !s_IsFlying) {
             s_VerticalVelocity = s_JumpForce;
             s_CoyoteTime = 0.0f;
-            // isGrounded = false;
+            s_IsGrounded = false;
         }
     }
 

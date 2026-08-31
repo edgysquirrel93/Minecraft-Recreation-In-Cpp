@@ -8,29 +8,30 @@ namespace engine::input
 {
 class Input {
 public:
-    // void updatePlayer(float deltaTime);
     static void processInput(GLFWwindow* window);
     static void enterGameInputMode(GLFWwindow* window);
+    static bool grounded(const glm::vec3& pos);
+    // static bool checkCollision(const glm::vec3& pos);
 };
 
 class Player {
     static inline float s_TargetFov {};
     static inline float s_VerticalVelocity {};
     static inline float s_CoyoteTime {};
-    static inline float s_JumpForce {};
-    static inline float s_Gravity {};
-    static inline float s_CoyoteDuration {};
+    static inline float s_JumpForce {8.4f};
+    static inline float s_Gravity {-32.0f};
+    static inline bool s_IsGrounded {};
+    static inline float s_CoyoteDuration {0.1f};
     static inline bool s_SpaceWasPressed {false};
     static inline bool s_IsFlying {false};
     static inline float s_LastSpaceTime {0.0f};
     static inline bool s_LeftMousePressed {false};
+    static inline bool s_RightMousePressed {false};
+    static inline uint8_t s_BuildingBlock;
     static void processSurvivalMovement(GLFWwindow* window, float deltaTime);
     static void processCreativeMovement(GLFWwindow* window, float deltaTime);
-
-    static inline worldgen::ChunkRendering* s_ActiveChunk {nullptr};
+    static void processGravity(float deltaTime);
 public:
-
-    static void init(worldgen::ChunkRendering* chunk) { s_ActiveChunk = chunk; }
 
     static void processMovement(GLFWwindow* window, float deltaTime);
 

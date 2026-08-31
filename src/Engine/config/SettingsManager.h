@@ -4,6 +4,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Engine/worldgen/ChunkRendering.h"
+
 namespace engine::config {
 
 class SettingsManager {
@@ -55,6 +57,7 @@ class LevelData {
     bool m_HasPlayerPos {false};
     bool m_CreativeMode {false};
     std::string m_LastPlayed{};
+    worldgen::ChunkRendering* m_ActiveChunk {nullptr};
 
     LevelData() = default;
 
@@ -69,6 +72,8 @@ public:
     void saveLevel();
     static std::string saveTime();
 
+    void setActiveChunk(worldgen::ChunkRendering* chunk) { m_ActiveChunk = chunk; }
+    [[nodiscard]] worldgen::ChunkRendering* getActiveChunk() const { return m_ActiveChunk; }
     [[nodiscard]] long long getSeed() const { return m_Seed; }
     void setSeed(const long long s) { m_Seed = s; }
     [[nodiscard]] std::string getCurrentWorldName() const { return m_CurrentWorldName; }
