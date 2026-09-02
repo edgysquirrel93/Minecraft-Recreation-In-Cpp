@@ -1,6 +1,7 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_BLOCK_H
 #define MINECRAFT_RECREATION_RECREATION_BLOCK_H
 #include <array>
+#include <vector>
 
 #include "Texture.h"
 
@@ -30,38 +31,27 @@ struct BlockType {
 };
 
 namespace engine::blockregistry {
-    using namespace engine::texture;
 
-    constexpr uint8_t ID_AIR     = 0;
-    constexpr uint8_t ID_DIRT    = 1;
-    constexpr uint8_t ID_STONE   = 2;
-    constexpr uint8_t ID_GRASS   = 3;
-    constexpr uint8_t ID_BEDROCK = 4;
+constexpr uint8_t ID_AIR     = 0;
+constexpr uint8_t ID_DIRT    = 1;
+constexpr uint8_t ID_STONE   = 2;
+constexpr uint8_t ID_GRASS   = 3;
+constexpr uint8_t ID_BEDROCK = 4;
 
-    inline const BlockType AIR{"Air", -1};
+class Block
+{
+    Block();
+    std::vector<BlockType> m_Registry;
+public:
+    static Block& instance();
 
-    inline const BlockType DIRT{"Dirt", BlockLayer::DIRT};
+    Block(const Block&) = delete;
+    Block& operator=(const Block&) = delete;
 
-    inline const BlockType STONE{"Stone", BlockLayer::STONE};
+    [[nodiscard]] const BlockType& getBlock(uint8_t id) const;
+};
 
-    inline const BlockType GRASS{
-        "Grass",
-        BlockLayer::GRASS_TOP, BlockLayer::DIRT, BlockLayer::GRASS_SIDE
-    };
+[[nodiscard]] const BlockType& get(uint8_t id);
 
-    inline const BlockType BEDROCK{"Bedrock", BlockLayer::BEDROCK};
-
-    inline const std::array REGISTRY = {
-        AIR,      // ID 0
-        DIRT,     // ID 1
-        STONE,    // ID 2
-        GRASS,    // ID 3
-        BEDROCK   // ID 4
-    };
-
-    [[nodiscard]] inline const BlockType& get(const uint8_t id) {
-        if (id >= REGISTRY.size()) return AIR;
-        return REGISTRY[id];
-    }
 }
 #endif

@@ -57,7 +57,7 @@ bool Input::grounded(const glm::vec3& pos)
     const auto* chunk {config::LevelData::get().getActiveChunk()};
     if (!chunk) return false;
 
-    return chunk->getBlockAt(blockX, blockY, blockZ) != blockregistry::AIR;
+    return chunk->getBlockAt(blockX, blockY, blockZ) != blockregistry::get(blockregistry::ID_AIR);
 }
 
 // bool Input::checkCollision(const glm::vec3& pos)
@@ -321,7 +321,7 @@ Camera::RaycastResult Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxD
 
     while (travelled < maxDist) {
         // FIX: Read from the passed 'chunk' reference, NOT a local object!
-        if (chunk.getBlockAt(x, y, z) != blockregistry::AIR) {
+        if (chunk.getBlockAt(x, y, z) != blockregistry::get(blockregistry::ID_AIR)) {
             result.hit = true;
             result.blockPos = glm::ivec3(x, y, z);
             result.placePos = result.blockPos - lastNormal;

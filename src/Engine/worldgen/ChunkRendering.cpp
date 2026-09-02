@@ -28,7 +28,7 @@ void ChunkRendering::generateTestChunk() {
 
 const BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
     if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) {
-        return blockregistry::AIR;
+        return blockregistry::get(blockregistry::ID_AIR);
     }
     const uint8_t id = m_BlockIDs[getIndex(x, y, z)];
     return blockregistry::get(id);
@@ -50,11 +50,11 @@ void ChunkRendering::rebuildMesh() {
         for (int y = 0; y < 256; y++) {
             for (int z = 0; z < 16; z++) {
                 BlockType block = getBlockAt(x, y, z);
-                if (block == blockregistry::AIR) continue;
+                if (block == blockregistry::get(blockregistry::ID_AIR)) continue;
 
                 for (int face = 0; face < 6; ++face) {
                     if (const glm::ivec3 neighborPos = glm::ivec3(x, y, z) + NEIGHBORS[face];
-                        getBlockAt(neighborPos.x, neighborPos.y, neighborPos.z) == blockregistry::AIR) {
+                        getBlockAt(neighborPos.x, neighborPos.y, neighborPos.z) == blockregistry::get(blockregistry::ID_AIR)) {
                         addFaceVertices(vertices, glm::vec3(x, y, z), face, block);
                     }
                 }
