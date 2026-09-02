@@ -1,10 +1,16 @@
 #include "ChunkRendering.h"
 
+#include "WorldGen.h"
 #include "Engine/rendering/Rendering.h"
 
 namespace engine::worldgen {
 
-void ChunkRendering::generateTestChunk() {
+ChunkRendering::~ChunkRendering() {
+    if (m_ChunkVAO != 0) glDeleteVertexArrays(1, &m_ChunkVAO);
+    if (m_ChunkVBO != 0) glDeleteBuffers(1, &m_ChunkVBO);
+}
+
+void ChunkRendering::generateChunk() {
     m_BlockIDs.fill(blockregistry::ID_AIR);
 
     for (int x = 0; x < 16; x++) {
@@ -14,11 +20,9 @@ void ChunkRendering::generateTestChunk() {
             for (int y = 59; y <= 63; y++) {
                 setBlock(x, y, z, blockregistry::ID_DIRT);
             }
-
             for (int y = 6; y <= 58; y++) {
                 setBlock(x, y, z, blockregistry::ID_STONE);
             }
-
             for (int y = 0; y <= 5; y++) {
                 setBlock(x, y, z, blockregistry::ID_BEDROCK);
             }
@@ -43,19 +47,36 @@ void ChunkRendering::setBlock(const int x, const int y, const int z, const uint8
     }
 }
 
-void ChunkRendering::rebuildMesh() {
+void ChunkRendering::rebuildMesh(const World& world) {
     std::vector<Vertex> vertices;
+
+    const int worldXOffset = m_ChunkX * 16;
+    const int worldZOffset = m_ChunkZ * 16;
 
     for (int x = 0; x < 16; x++) {
         for (int y = 0; y < 256; y++) {
             for (int z = 0; z < 16; z++) {
-                BlockType block = getBlockAt(x, y, z);
+                const BlockType& block = getBlockAt(x, y, z);
                 if (block == blockregistry::get(blockregistry::ID_AIR)) continue;
 
+                const glm::vec3 worldBlockPos(x + worldXOffset, y, z + worldZOffset);
+
                 for (int face = 0; face < 6; ++face) {
-                    if (const glm::ivec3 neighborPos = glm::ivec3(x, y, z) + NEIGHBORS[face];
-                        getBlockAt(neighborPos.x, neighborPos.y, neighborPos.z) == blockregistry::get(blockregistry::ID_AIR)) {
-                        addFaceVertices(vertices, glm::vec3(x, y, z), face, block);
+                    const glm::ivec3 dir {NEIGHBORS[face]};
+                    const int nx = x + dir.x;
+                    const int ny = y + dir.y;
+                    const int nz = z + dir.z;
+
+                    BlockType neighborBlock;
+
+                    if (nx >= 0 && nx < 16 && ny >= 0 && ny < 256 && nz >= 0 && nz < 16) {
+                        neighborBlock = getBlockAt(nx, ny, nz);
+                    } else {
+                        neighborBlock = world.getBlockAt(worldXOffset + nx, ny, worldZOffset + nz);
+                    }
+
+                    if (!neighborBlock.isOpaque && neighborBlock != block) {
+                        addFaceVertices(vertices, worldBlockPos, face, block);
                     }
                 }
             }
@@ -81,6 +102,7 @@ void ChunkRendering::rebuildMesh() {
     glEnableVertexAttribArray(2);
 
     m_VertexCount = static_cast<GLsizei>(vertices.size());
+    m_IsDirty = false;
 }
 
 void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, const int face, const BlockType& block) {

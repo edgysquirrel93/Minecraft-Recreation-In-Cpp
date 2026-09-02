@@ -10,11 +10,12 @@ Block& Block::instance() {
 
     Block::Block()
         : m_Registry{
-    {"Air",     -1},
+    {"Air",     -1, false},
     {"Dirt",    BlockLayer::DIRT},
     {"Stone",   BlockLayer::STONE},
-    {"Grass",   BlockLayer::GRASS_TOP, BlockLayer::DIRT, BlockLayer::GRASS_SIDE},
-    {"Bedrock", BlockLayer::BEDROCK}
+    {"Grass",   BlockLayer::GRASS_TOP, BlockLayer::DIRT, BlockLayer::GRASS_SIDE,},
+    {"Bedrock", BlockLayer::BEDROCK},
+    {"Glass", BlockLayer::GLASS, false}
         }
 {}
 

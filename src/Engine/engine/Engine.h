@@ -14,6 +14,7 @@ class Engine {
     config::SettingsManager m_Settings;
     sound::Sound m_Sound;
     rendering::Rendering m_Rendering{};
+    worldgen::World m_World{};
     std::unique_ptr<rendering::ShaderManager> m_ShaderManager;
     std::chrono::steady_clock::time_point m_LastFrameTime;
 

@@ -6,14 +6,17 @@
 #include "Engine/player/Input.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "Engine/worldgen/ChunkRendering.h"
-
 namespace engine::rendering
 {
+
+    Rendering::Rendering() {
+        config::LevelData::get().setWorld(m_World);
+    }
 
 void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager) {
     const auto* mainShader {shaderManager.get("main")};
     if (!mainShader) return;
+    mainShader->use();
 
     const auto model {glm::translate(glm::mat4(1.0f), position)};
     mainShader->setMat4("model", model);
@@ -38,45 +41,34 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (const auto* mainShader = shaderManager.get("main")) {
+    if (const auto* mainShader = shaderManager.get("main"))
+    {
         mainShader->use();
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D_ARRAY, static_cast<GLuint>(texture::LoadTexture::block.atlas));
         mainShader->setInt("atlas", 0);
 
-        static bool initialized {false};
-        if (!initialized) {
-            m_Chunk.generateTestChunk();
-            initialized = true;
-        }
-
-        if (m_Chunk.isDirty()) {
-            m_Chunk.rebuildMesh();
-            m_Chunk.clearDirty();
-        }
-
         glfwGetFramebufferSize(window, &width, &height);
+
+        const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
+        const glm::vec3 cameraView  = input::Camera::getCameraFront();
+
+        m_World.update(cameraPos);
 
         const glm::mat4 projection {glm::perspective(
                 glm::radians(input::Player::getTargetFov()),
-                    static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
-                    0.1f, 100.0f)};
+                static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
+                0.1f, 1000.0f)};
         mainShader->setMat4("projection", projection);
 
         constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
-        const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
-        const glm::vec3 cameraView = input::Camera::getCameraFront();
-
         m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
         mainShader->setMat4("view", m_View);
 
         mainShader->setMat4("model", glm::mat4(1.0f));
 
-        if (m_Chunk.getVertex() > 0) {
-            glBindVertexArray(m_Chunk.getVAO());
-            glDrawArrays(GL_TRIANGLES, 0, static_cast<int>(m_Chunk.getVertex()));
-        }
+        m_World.render();
     }
 }
 
@@ -94,6 +86,7 @@ void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window
         aspect = static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1);
         crosshairShader->use();
         crosshairShader->setFloat("aspectRatio", aspect);
+        if (meshdata::MeshData::crossVAO == 0) return;
         glBindVertexArray(meshdata::MeshData::crossVAO);
         glDrawArrays(GL_TRIANGLES, 0, 12);
         glDisable(GL_BLEND);
@@ -103,7 +96,8 @@ void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window
 }
 
 void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window) {
-    if (const auto* selectionBoxShader = shaderManager.get("selectionBox")) {
+    if (const auto* selectionBoxShader = shaderManager.get("selectionBox"))
+    {
         selectionBoxShader->use();
 
         int width, height;
@@ -118,9 +112,9 @@ void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* win
         selectionBoxShader->setMat4("view", m_View);
 
         if (const auto raycast = input::Camera::raycast(config::LevelData::get().getCameraPos(),
-            input::Camera::getCameraFront(), 5.0f, m_Chunk); raycast.hit) {
+            input::Camera::getCameraFront(), 5.0f, m_World); raycast.hit) {
 
-            glm::vec3 blockCenter = glm::vec3(raycast.blockPos) + glm::vec3(0.5f);
+            const glm::vec3 blockCenter {glm::vec3(raycast.blockPos) + glm::vec3(0.5f)};
 
             glm::mat4 model = glm::translate(glm::mat4(1.0f), blockCenter);
             model = glm::scale(model, glm::vec3(1.002f));
@@ -131,7 +125,7 @@ void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* win
             glBindVertexArray(meshdata::MeshData::selVAO);
             glLineWidth(2.5f);
             glDrawArrays(GL_LINES, 0, 24);
-            }
+        }
     }
 }
 } // engine::rendering

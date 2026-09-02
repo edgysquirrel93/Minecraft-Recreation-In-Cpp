@@ -5,6 +5,7 @@
 
 #include "Engine/ui/UIManager.h"
 #include "Engine/config/SettingsManager.h"
+#include "Engine/worldgen/WorldGen.h"
 
 namespace engine::input
 {
@@ -54,10 +55,10 @@ bool Input::grounded(const glm::vec3& pos)
     const int blockY {static_cast<int>(std::floor(pos.y - EYE_HEIGHT))};
     const int blockZ {static_cast<int>(std::floor(pos.z))};
 
-    const auto* chunk {config::LevelData::get().getActiveChunk()};
-    if (!chunk) return false;
+    const auto* world {config::LevelData::get().getWorld()};
+    if (!world) return false;
 
-    return chunk->getBlockAt(blockX, blockY, blockZ) != blockregistry::get(blockregistry::ID_AIR);
+    return world->getBlockAt(blockX, blockY, blockZ) != blockregistry::get(blockregistry::ID_AIR);
 }
 
 // bool Input::checkCollision(const glm::vec3& pos)
@@ -117,7 +118,6 @@ void Player::processGravity(const float deltaTime) {
 }
 
 void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) {
-    if (!config::LevelData::get().getActiveChunk()) return;
 
     glm::vec3 moveDir {};
     float speed {4.317f * deltaTime};
@@ -182,14 +182,15 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime) 
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_DIRT;
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_STONE;
     if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_BEDROCK;
+    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GLASS;
 
     auto [pressed, blockPos, placePos] {Camera::raycast(config::LevelData::get().getCameraPos(),
-Camera::getCameraFront(), 5.0f, *config::LevelData::get().getActiveChunk())};
+Camera::getCameraFront(), 5.0f, *config::LevelData::get().getWorld())};
 
     bool currentLeft = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
     if (currentLeft && !s_LeftMousePressed) {
         if (pressed) {
-            config::LevelData::get().getActiveChunk()->setBlock(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
+            config::LevelData::get().getWorld()->setBlockAt(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
         }
     }
     s_LeftMousePressed = currentLeft;
@@ -197,7 +198,7 @@ Camera::getCameraFront(), 5.0f, *config::LevelData::get().getActiveChunk())};
     bool currentRight {glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS};
     if (currentRight && !s_RightMousePressed) {
         if (pressed) {
-                config::LevelData::get().getActiveChunk()->setBlock(placePos.x, placePos.y, placePos.z, s_BuildingBlock);
+                config::LevelData::get().getWorld()->setBlockAt(placePos.x, placePos.y, placePos.z, s_BuildingBlock);
             }
         }
     s_RightMousePressed = currentRight;
@@ -294,7 +295,7 @@ void Camera::mouseCallback(GLFWwindow* /*window*/, const double xposIn, const do
     m_CameraFront = glm::normalize(front);
 }
 
-Camera::RaycastResult Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::ChunkRendering& chunk) {
+Camera::RaycastResult Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world) {
     RaycastResult result;
     if (glm::length2(dir) < 0.0001f) return result;
 
@@ -321,7 +322,7 @@ Camera::RaycastResult Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxD
 
     while (travelled < maxDist) {
         // FIX: Read from the passed 'chunk' reference, NOT a local object!
-        if (chunk.getBlockAt(x, y, z) != blockregistry::get(blockregistry::ID_AIR)) {
+        if (world.getBlockAt(x, y, z) != blockregistry::get(blockregistry::ID_AIR)) {
             result.hit = true;
             result.blockPos = glm::ivec3(x, y, z);
             result.placePos = result.blockPos - lastNormal;

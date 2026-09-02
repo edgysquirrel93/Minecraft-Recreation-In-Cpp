@@ -58,7 +58,7 @@ public:
     };
 
     static void mouseCallback(GLFWwindow* /*window*/, double xposIn, double yposIn);
-    static RaycastResult raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::ChunkRendering& chunk);
+    static RaycastResult raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world);
 
     static glm::vec3 getCameraFront() {return m_CameraFront;}
     static void resetMouseFlag() {m_FirstMouse = false;}

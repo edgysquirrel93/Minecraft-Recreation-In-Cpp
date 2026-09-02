@@ -8,23 +8,27 @@
 struct BlockType {
     std::string name {"Air"};
     std::array<int, 6> faceLayers {-1, -1, -1, -1, -1, -1}; // Back, Front, Left, Right, Bottom, Top
+    bool isOpaque{true};
 
     BlockType() = default;
 
     // Single faced block
-    BlockType(std::string blockName, const int singleLayer)
+    BlockType(std::string blockName, const int singleLayer, const bool opaque = true)
         : name(std::move(blockName)),
-          faceLayers{singleLayer, singleLayer, singleLayer, singleLayer, singleLayer, singleLayer} {}
+          faceLayers{singleLayer, singleLayer, singleLayer, singleLayer, singleLayer, singleLayer},
+          isOpaque(opaque) {}
 
     // Top, Bottom, and Sides
-    BlockType(std::string blockName, const int top, const int bottom, const int side)
+    BlockType(std::string blockName, const int top, const int bottom, const int side, const bool opaque = true)
         : name(std::move(blockName)),
-          faceLayers{side, side, side, side, bottom, top} {}
+          faceLayers{side, side, side, side, bottom, top} ,
+          isOpaque(opaque) {}
 
     // 6 faces
-    BlockType(std::string blockName, const std::array<int, 6>& layers)
+    BlockType(std::string blockName, const std::array<int, 6>& layers, const bool opaque = true)
         : name(std::move(blockName)),
-          faceLayers(layers) {}
+          faceLayers(layers),
+          isOpaque(opaque) {}
 
     bool operator==(const BlockType& other) const {return name == other.name;}
     bool operator!=(const BlockType& other) const {return !(*this == other);}
@@ -37,6 +41,7 @@ constexpr uint8_t ID_DIRT    = 1;
 constexpr uint8_t ID_STONE   = 2;
 constexpr uint8_t ID_GRASS   = 3;
 constexpr uint8_t ID_BEDROCK = 4;
+constexpr uint8_t ID_GLASS   = 5;
 
 class Block
 {

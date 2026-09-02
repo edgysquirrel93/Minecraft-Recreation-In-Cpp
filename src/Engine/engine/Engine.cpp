@@ -15,7 +15,7 @@ void Engine::initSystems() {
     m_ShaderManager = std::make_unique<rendering::ShaderManager>();
     m_Sound.init();
     meshdata::MeshData::Init();
-    config::LevelData::get().setActiveChunk(&m_Rendering.getChunk());
+    config::LevelData::get().setWorld(m_Rendering.getWorld());
     texture::LoadTexture::loadAllTextures();
     ui::UIManager::init(m_WindowInstance.getWindow());
     m_LastFrameTime = std::chrono::steady_clock::now();
@@ -42,8 +42,10 @@ void Engine::gameLoop()
 
         if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame)
         {
+            const float frameTime {std::min(deltaTime, 0.1f)};
             input::Input::processInput(window);
-            input::Player::processMovement(window, deltaTime);
+            input::Player::processMovement(window, frameTime);
+            m_Rendering.getWorld().update(config::LevelData::get().getCameraPos());
             glEnable(GL_DEPTH_TEST);
             m_Rendering.gameRender(*m_ShaderManager, window);
         }
