@@ -73,7 +73,7 @@ void World::update(const glm::vec3& playerPos) {
             it = m_Chunks.erase(it);
             } else {
                 ++it;
-            }
+        }
     }
 }
 } // engine::worldgen

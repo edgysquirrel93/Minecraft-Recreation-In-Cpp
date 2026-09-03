@@ -1,5 +1,7 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_INPUT_H
 #define MINECRAFT_RECREATION_RECREATION_INPUT_H
+#include <optional>
+
 #include "GLFW/glfw3.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "Engine/worldgen/ChunkRendering.h"
@@ -52,13 +54,12 @@ class Camera {
 public:
 
     struct RaycastResult {
-        bool hit;
         glm::ivec3 blockPos{};
         glm::ivec3 placePos{0};
     };
 
     static void mouseCallback(GLFWwindow* /*window*/, double xposIn, double yposIn);
-    static RaycastResult raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world);
+    static std::optional<RaycastResult> raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world);
 
     static glm::vec3 getCameraFront() {return m_CameraFront;}
     static void resetMouseFlag() {m_FirstMouse = false;}

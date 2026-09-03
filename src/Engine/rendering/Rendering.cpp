@@ -31,8 +31,24 @@ void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position,
 
 void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
     renderMainShader(shaderManager, window);
+    renderTransparentBlock(shaderManager, window);
     renderCrosshair(shaderManager, window);
     renderSelectionBox(shaderManager, window);
+}
+
+void Rendering::renderTransparentBlock(ShaderManager& shaderManager, GLFWwindow* window) {
+    if (const auto* mainShader = shaderManager.get("main"))
+    {
+        mainShader->use();
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+        glEnable(GL_CULL_FACE);
+    }
 }
 
 void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* window) {
@@ -40,6 +56,13 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
 
     if (const auto* mainShader = shaderManager.get("main"))
     {
@@ -77,6 +100,7 @@ void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window
     int width, height;
 
     if (const auto* crosshairShader = shaderManager.get("crosshair")) {
+        glDisable(GL_CULL_FACE);
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -92,12 +116,25 @@ void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window
         glDisable(GL_BLEND);
         glBlendEquation(GL_FUNC_ADD);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
     }
 }
 
 void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window) {
     if (const auto* selectionBoxShader = shaderManager.get("selectionBox"))
     {
+
+        const auto raycast = input::Camera::raycast(
+                config::LevelData::get().getCameraPos(),
+                input::Camera::getCameraFront(),
+                5.0f,
+                m_World
+                );
+
+        if (!raycast.has_value()) return;
+
+        const auto [blockPos, placePos] = *raycast;
+
         selectionBoxShader->use();
 
         int width, height;
@@ -105,27 +142,31 @@ void Rendering::renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* win
         const glm::mat4 projection = glm::perspective(
             glm::radians(input::Player::getTargetFov()),
             static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
-            0.1f, 100.0f
+            0.1f, 1000.0f
         );
 
         selectionBoxShader->setMat4("projection", projection);
         selectionBoxShader->setMat4("view", m_View);
 
-        if (const auto raycast = input::Camera::raycast(config::LevelData::get().getCameraPos(),
-            input::Camera::getCameraFront(), 5.0f, m_World); raycast.hit) {
+        const glm::vec3 blockCenter {glm::vec3(blockPos) + glm::vec3(0.5f)};
 
-            const glm::vec3 blockCenter {glm::vec3(raycast.blockPos) + glm::vec3(0.5f)};
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), blockCenter);
+        model = glm::scale(model, glm::vec3(1.002f));
 
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), blockCenter);
-            model = glm::scale(model, glm::vec3(1.002f));
+        selectionBoxShader->setMat4("model", model);
+        selectionBoxShader->setVec3("color", glm::vec3(0.0f, 0.0f, 0.0f));
 
-            selectionBoxShader->setMat4("model", model);
-            selectionBoxShader->setVec3("color", glm::vec3(0.0f, 0.0f, 0.0f));
+        glDisable(GL_CULL_FACE);
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_LEQUAL);
 
-            glBindVertexArray(meshdata::MeshData::selVAO);
-            glLineWidth(2.5f);
-            glDrawArrays(GL_LINES, 0, 24);
-        }
+        glBindVertexArray(meshdata::MeshData::selVAO);
+        glLineWidth(2.5f);
+        glDrawArrays(GL_LINES, 0, 24);
+
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
     }
 }
 } // engine::rendering

@@ -41,6 +41,7 @@ class Rendering {
     worldgen::World m_World;
 
     // Rendering Shaders
+    static void renderTransparentBlock(ShaderManager& shaderManager, GLFWwindow* window);
     void renderMainShader(ShaderManager& shaderManager, GLFWwindow* window);
     static void renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window);
     void renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window);
