@@ -3,7 +3,7 @@
 #include <filesystem>
 
 #include "Engine/shaders/shaders.h"
-#include "Engine/texture/Block.h"
+#include "../block/Block.h"
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <unordered_map>
@@ -48,7 +48,7 @@ class Rendering {
 public:
     Rendering();
     void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
-    static void drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
+    static void drawBlock(const block::BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
 
     [[nodiscard]] worldgen::World& getWorld() { return m_World; }
     [[nodiscard]] const worldgen::World& getWorld() const { return m_World; }

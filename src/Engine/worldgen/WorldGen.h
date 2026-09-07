@@ -3,14 +3,34 @@
 #include <memory>
 #include <ranges>
 #include <unordered_map>
+#include <PerlinNoise.hpp>
 
 #include "ChunkRendering.h"
 
 namespace engine::worldgen
 {
+
+class WorldGen {
+    siv::PerlinNoise m_Perlin;
+    int64_t m_Seed;
+    [[nodiscard]] static siv::PerlinNoise::seed_type hashSeed64(int64_t seed) noexcept;
+
+public:
+    explicit WorldGen(int64_t seed = 1337LL);
+    void generateChunkData(ChunkRendering& chunk) const;
+};
+
 class World {
     std::unordered_map<uint64_t, std::unique_ptr<ChunkRendering>> m_Chunks;
+    WorldGen m_WorldGen;
+    static constexpr uint32_t CHUNK_FILE_MAGIC {0x564F584C};
+    static constexpr uint16_t CHUNK_FILE_VERSION {1};
 
+    struct ChunkHeader {
+        uint32_t magic{CHUNK_FILE_MAGIC};
+        uint16_t version{CHUNK_FILE_VERSION};
+        uint32_t dataSize{0};
+    };
 public:
 
     World() = default;
@@ -52,7 +72,7 @@ public:
         return nullptr;
     }
 
-    [[nodiscard]] const BlockType& getBlockAt(int worldX, int worldY, int worldZ) const;
+    [[nodiscard]] const block::BlockType& getBlockAt(int worldX, int worldY, int worldZ) const;
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
 
@@ -64,11 +84,10 @@ public:
                 glBindVertexArray(chunk->getVAO());
                 glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(chunk->getVertex()));
             }}}
-};
 
-class WorldGen
-{
-
+    static void saveChunk(int cx, int cz, const ChunkRendering* chunk, const std::string& currentWorldName);
+    static bool loadChunk(int cx, int cz, ChunkRendering* chunk, const std::string& currentWorldName);
+    void saveAllChunks();
 };
 } // engine::worldgen
 

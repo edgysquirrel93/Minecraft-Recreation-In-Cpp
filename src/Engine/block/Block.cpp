@@ -16,16 +16,15 @@ Block& Block::instance() {
     {"Grass",   BlockLayer::GRASS_TOP, BlockLayer::DIRT, BlockLayer::GRASS_SIDE,},
     {"Bedrock", BlockLayer::BEDROCK},
     {"Glass", BlockLayer::GLASS, false}
-        }
-{}
+        } {}
 
-const BlockType& Block::getBlock(const uint8_t id) const {
+const block::BlockType& Block::getBlock(const uint8_t id) const {
     if (id >= m_Registry.size()) {
         return m_Registry[ID_AIR];
     }
     return m_Registry[id];
 }
 
-const BlockType& get(const uint8_t id) {return Block::instance().getBlock(id);}
+const block::BlockType& get(const uint8_t id) {return Block::instance().getBlock(id);}
 
 }

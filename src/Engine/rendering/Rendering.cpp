@@ -13,7 +13,7 @@ namespace engine::rendering
         config::LevelData::get().setWorld(m_World);
     }
 
-void Rendering::drawBlock(const BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager) {
+void Rendering::drawBlock(const block::BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager) {
     const auto* mainShader {shaderManager.get("main")};
     if (!mainShader) return;
     mainShader->use();

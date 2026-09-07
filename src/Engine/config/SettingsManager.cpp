@@ -9,7 +9,7 @@ namespace fs = std::filesystem;
 
 namespace engine::config {
 
-    SettingsManager* SettingsManager::s_Instance = nullptr;
+SettingsManager* SettingsManager::s_Instance = nullptr;
 
 void SettingsManager::load() {
     if (!fs::exists(m_Filename)) {
@@ -90,13 +90,17 @@ fs::path SettingsManager::getSaveDirectory() {
     return saveDir;
 }
 
-static long long generateSeed() {
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
+long long LevelData::generateSeed() {
+    thread_local std::mt19937_64 gen([]{
+        std::random_device rd;
+        return rd();
+    }());
+
     std::uniform_int_distribution dist(
         std::numeric_limits<long long>::min(),
         std::numeric_limits<long long>::max()
     );
+
     return dist(gen);
 }
 
@@ -108,11 +112,11 @@ void LevelData::saveLevel() {
 
     fs::create_directories(SettingsManager::getSaveDirectory() / "saves" / m_CurrentWorldName);
 
-    // if (!fs::exists(levelFilename)) {
-    //     if (!ui::UIManager::getSeedInput()) {
-    //         m_Seed = generateSeed();
-    //     }
-    // }
+    if (!fs::exists(levelFilename)) {
+        if (!ui::UIManager::getSeedInput()) {
+            m_Seed = generateSeed();
+        }
+    }
 
     json data;
     data["seed"] = m_Seed;
@@ -135,9 +139,6 @@ void LevelData::loadLevel() {
         "level.json").string()};
 
     if (!fs::exists(levelFilename)) {
-        if (!ui::UIManager::getSeedInput()) {
-            m_Seed = generateSeed();
-        }
         saveLevel();
         return;
     }

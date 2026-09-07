@@ -1020,6 +1020,7 @@ void UIManager::drawCreateNewWorldScreen() {
 
         if (s_SeedStringInput.empty()) {
             s_SeedInput = false;
+            seed = config::LevelData::generateSeed();
         }
 
         else {
@@ -1065,6 +1066,7 @@ void UIManager::drawCreateNewWorldScreen() {
         config::LevelData::get().saveLevel();
         config::LevelData::get().loadLevel();
         s_CurrentScreen = ScreenState::InGame;
+        input::Input::enterGameInputMode(s_GlfwWindow);
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1150,6 +1152,7 @@ void UIManager::drawMoreWorldOptionsScreen() {
 
         if (s_SeedStringInput.empty()) {
             s_SeedInput = false;
+            seed = config::LevelData::generateSeed();
         }
 
         else {
@@ -1195,6 +1198,7 @@ void UIManager::drawMoreWorldOptionsScreen() {
         config::LevelData::get().saveLevel();
         config::LevelData::get().loadLevel();
         s_CurrentScreen = ScreenState::InGame;
+        input::Input::enterGameInputMode(s_GlfwWindow);
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;

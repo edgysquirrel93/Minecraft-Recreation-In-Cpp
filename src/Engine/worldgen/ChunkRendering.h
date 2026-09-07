@@ -1,12 +1,13 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_CHUNKRENDER_H
 #define MINECRAFT_RECREATION_RECREATION_CHUNKRENDER_H
-#include "Engine/texture/Block.h"
+#include "../block/Block.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include <vector>
 
 namespace engine::worldgen {
     class World;
 class ChunkRendering {
+    using BlockArray = std::array<uint8_t, 16 * 256 * 16>;
     int m_ChunkX{0};
     int m_ChunkZ{0};
     std::array<uint8_t, 16 * 256 * 16> m_BlockIDs{};
@@ -34,16 +35,18 @@ public:
     ChunkRendering(const int chunkX, const int chunkZ) : m_ChunkX(chunkX), m_ChunkZ(chunkZ) {}
     ~ChunkRendering();
 
-    void generateChunk();
     void rebuildMesh(const World& world);
-    static void addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, int face, const BlockType& block);
+    static void addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, int face, const block::BlockType& block);
 
     [[nodiscard]] uint8_t getBlockID(const int x, const int y, const int z) const {
         if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) return 0; return m_BlockIDs[getIndex(x, y, z)];}
 
     [[nodiscard]] static constexpr int getIndex(const int x, const int y, const int z) {return x + 16 * (z + 16 * y);}
 
-    [[nodiscard]] const BlockType& getBlockAt(int x, int y, int z) const;
+    [[nodiscard]] BlockArray& getBlockIDs() { return m_BlockIDs; }
+    [[nodiscard]] const BlockArray& getBlockIDs() const noexcept { return m_BlockIDs; }
+
+    [[nodiscard]] const block::BlockType& getBlockAt(int x, int y, int z) const;
     void setBlock(int x, int y, int z, uint8_t blockID);
     [[nodiscard]] bool isDirty() const { return m_IsDirty; }
     void makeDirty() { m_IsDirty = true; }

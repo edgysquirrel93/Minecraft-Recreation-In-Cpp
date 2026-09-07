@@ -3,8 +3,10 @@
 #include <array>
 #include <vector>
 
-#include "Texture.h"
+#include "../texture/Texture.h"
 
+namespace engine {
+namespace block {
 struct BlockType {
     std::string name {"Air"};
     std::array<int, 6> faceLayers {-1, -1, -1, -1, -1, -1}; // Back, Front, Left, Right, Bottom, Top
@@ -33,30 +35,32 @@ struct BlockType {
     bool operator==(const BlockType& other) const {return name == other.name;}
     bool operator!=(const BlockType& other) const {return !(*this == other);}
 };
+}
 
-namespace engine::blockregistry {
+namespace blockregistry {
 
-constexpr uint8_t ID_AIR     = 0;
-constexpr uint8_t ID_DIRT    = 1;
-constexpr uint8_t ID_STONE   = 2;
-constexpr uint8_t ID_GRASS   = 3;
-constexpr uint8_t ID_BEDROCK = 4;
-constexpr uint8_t ID_GLASS   = 5;
+    constexpr uint8_t ID_AIR     = 0;
+    constexpr uint8_t ID_DIRT    = 1;
+    constexpr uint8_t ID_STONE   = 2;
+    constexpr uint8_t ID_GRASS   = 3;
+    constexpr uint8_t ID_BEDROCK = 4;
+    constexpr uint8_t ID_GLASS   = 5;
 
-class Block
-{
-    Block();
-    std::vector<BlockType> m_Registry;
-public:
-    static Block& instance();
+    class Block
+    {
+        Block();
+        std::vector<block::BlockType> m_Registry;
+    public:
+        static Block& instance();
 
-    Block(const Block&) = delete;
-    Block& operator=(const Block&) = delete;
+        Block(const Block&) = delete;
+        Block& operator=(const Block&) = delete;
 
-    [[nodiscard]] const BlockType& getBlock(uint8_t id) const;
-};
+        [[nodiscard]] const block::BlockType& getBlock(uint8_t id) const;
+    };
 
-[[nodiscard]] const BlockType& get(uint8_t id);
+    [[nodiscard]] const block::BlockType& get(uint8_t id);
 
+}
 }
 #endif

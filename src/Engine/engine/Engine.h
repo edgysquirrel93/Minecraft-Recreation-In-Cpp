@@ -1,6 +1,5 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_ENGINE_H
 #define MINECRAFT_RECREATION_RECREATION_ENGINE_H
-#include <glad/gl.h>
 #include "Engine/config/SettingsManager.h"
 #include "Engine/window/WindowManager.h"
 #include "Engine/sound/Sound.h"

@@ -5,6 +5,7 @@
 #include "GLFW/glfw3.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "Engine/worldgen/ChunkRendering.h"
+#include "Engine/worldgen/WorldGen.h"
 
 namespace engine::input
 {

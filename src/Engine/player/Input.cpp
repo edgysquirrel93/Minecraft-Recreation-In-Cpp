@@ -17,6 +17,7 @@ void Input::processInput(GLFWwindow *window)
         ui::UIManager::setCurrentScreen(ui::ScreenState::PauseMenuScreen);
         ui::UIManager::setLastScreen(ui::ScreenState::PauseMenuScreen);
         ui::UIManager::disableOverlay(ui::DebugScreen);
+        config::LevelData::get().getWorld()->saveAllChunks();
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 

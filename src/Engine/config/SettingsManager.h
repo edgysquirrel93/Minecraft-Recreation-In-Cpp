@@ -1,7 +1,5 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_FILESYSTEM_H
 #define MINECRAFT_RECREATION_RECREATION_FILESYSTEM_H
-#include <glm/glm.hpp>
-
 #include <nlohmann/json.hpp>
 
 #include "Engine/worldgen/ChunkRendering.h"
@@ -79,6 +77,7 @@ public:
     [[nodiscard]] worldgen::World* getWorld() { return m_World; }
     [[nodiscard]] const worldgen::World* getWorld() const { return m_World; }
     void clearWorld() { m_World = nullptr; }
+    static long long generateSeed();
     [[nodiscard]] long long getSeed() const { return m_Seed; }
     void setSeed(const long long s) { m_Seed = s; }
     [[nodiscard]] std::string getCurrentWorldName() const { return m_CurrentWorldName; }

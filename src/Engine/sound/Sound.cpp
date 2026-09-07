@@ -118,7 +118,7 @@ void Sound::init() {
     ma_sound_group_init(&m_AudioEngine, 0, nullptr, &m_SFXGroup);
     m_Initialised = true;
 
-    ma_sound_init_from_file(&m_AudioEngine, "assets/Sound/SoundEffects/click.wav", MA_SOUND_FLAG_DECODE,
+    ma_sound_init_from_file(&m_AudioEngine, "assets/Sound/SoundEffects/click.wav", 0,
         &m_SFXGroup, nullptr, &m_ClickSound);
 
     if (config::SettingsManager::get().getMusicVolume() <= 0)
@@ -138,7 +138,6 @@ void Sound::init() {
     }
 
     playPlaylist("menu");
-
 }
 
 void Sound::playPlaylist(const std::string& playlist) {

@@ -10,27 +10,7 @@ ChunkRendering::~ChunkRendering() {
     if (m_ChunkVBO != 0) glDeleteBuffers(1, &m_ChunkVBO);
 }
 
-void ChunkRendering::generateChunk() {
-    m_BlockIDs.fill(blockregistry::ID_AIR);
-
-    for (int x = 0; x < 16; x++) {
-        for (int z = 0; z < 16; z++) {
-            setBlock(x, 64, z, blockregistry::ID_GRASS);
-
-            for (int y = 59; y <= 63; y++) {
-                setBlock(x, y, z, blockregistry::ID_DIRT);
-            }
-            for (int y = 6; y <= 58; y++) {
-                setBlock(x, y, z, blockregistry::ID_STONE);
-            }
-            for (int y = 0; y <= 5; y++) {
-                setBlock(x, y, z, blockregistry::ID_BEDROCK);
-            }
-        }
-    }
-}
-
-const BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
+const block::BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
     if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) {
         return blockregistry::get(blockregistry::ID_AIR);
     }
@@ -56,7 +36,7 @@ void ChunkRendering::rebuildMesh(const World& world) {
     for (int x = 0; x < 16; x++) {
         for (int y = 0; y < 256; y++) {
             for (int z = 0; z < 16; z++) {
-                const BlockType& block = getBlockAt(x, y, z);
+                const block::BlockType& block = getBlockAt(x, y, z);
                 if (block == blockregistry::get(blockregistry::ID_AIR)) continue;
 
                 const glm::vec3 worldBlockPos(x + worldXOffset, y, z + worldZOffset);
@@ -67,7 +47,7 @@ void ChunkRendering::rebuildMesh(const World& world) {
                     const int ny = y + dir.y;
                     const int nz = z + dir.z;
 
-                    BlockType neighborBlock;
+                    block::BlockType neighborBlock;
 
                     if (nx >= 0 && nx < 16 && ny >= 0 && ny < 256 && nz >= 0 && nz < 16) {
                         neighborBlock = getBlockAt(nx, ny, nz);
@@ -105,7 +85,7 @@ void ChunkRendering::rebuildMesh(const World& world) {
     m_IsDirty = false;
 }
 
-void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, const int face, const BlockType& block) {
+void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, const int face, const block::BlockType& block) {
 
     const auto texLayer = static_cast<float>(block.faceLayers[face]);
 

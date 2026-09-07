@@ -3,7 +3,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 project(Minecraft_Recreation_Recreation)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.1/assets.zip")
@@ -118,10 +118,10 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/meshdata/MeshData.h
         src/Engine/player/Input.cpp
         src/Engine/player/Input.h
-        src/Engine/texture/Block.h
+        src/Engine/block/Block.h
+        src/Engine/block/Block.cpp
         src/Engine/worldgen/ChunkRendering.cpp
         src/Engine/worldgen/ChunkRendering.h
-        src/Engine/texture/Block.cpp
 )
 
 FetchContent_GetProperties(imgui)
@@ -181,7 +181,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(mini_audio)
 
-if(LINUX OR UNIX)
+FetchContent_Declare(
+        perlin_noise
+        URL https://raw.githubusercontent.com/Reputeless/PerlinNoise/bdf39fe92b2a585cdef485bcec2bca8ab5614095/PerlinNoise.hpp
+        DOWNLOAD_NO_EXTRACT TRUE
+)
+FetchContent_MakeAvailable(perlin_noise)
+add_library(perlin_noise INTERFACE)
+target_include_directories(perlin_noise INTERFACE ${perlin_noise_SOURCE_DIR})
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
             asound
             pulse
@@ -200,6 +209,7 @@ target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
         glm::glm
         nlohmann_json::nlohmann_json
         stb_image
+        perlin_noise
 )
 
 target_include_directories(Minecraft_Recreation_Recreation PRIVATE
