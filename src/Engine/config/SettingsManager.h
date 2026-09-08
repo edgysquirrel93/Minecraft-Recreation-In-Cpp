@@ -2,12 +2,9 @@
 #define MINECRAFT_RECREATION_RECREATION_FILESYSTEM_H
 #include <nlohmann/json.hpp>
 
-#include "Engine/worldgen/ChunkRendering.h"
-#include "Engine/worldgen/WorldGen.h"
+#include "../rendering/ChunkRendering.h"
 
 namespace engine::config {
-
-    class World;
 
 class SettingsManager {
     static SettingsManager* s_Instance;
@@ -58,7 +55,7 @@ class LevelData {
     bool m_HasPlayerPos {false};
     bool m_CreativeMode {false};
     std::string m_LastPlayed{};
-    worldgen::World* m_World {nullptr};
+    world::World* m_World {nullptr};
 
     LevelData() = default;
 
@@ -73,9 +70,9 @@ public:
     void saveLevel();
     static std::string saveTime();
 
-    void setWorld(worldgen::World& world) { m_World = &world; }
-    [[nodiscard]] worldgen::World* getWorld() { return m_World; }
-    [[nodiscard]] const worldgen::World* getWorld() const { return m_World; }
+    void setWorld(world::World& world) { m_World = &world; }
+    [[nodiscard]] world::World* getWorld() { return m_World; }
+    [[nodiscard]] const world::World* getWorld() const { return m_World; }
     void clearWorld() { m_World = nullptr; }
     static long long generateSeed();
     [[nodiscard]] long long getSeed() const { return m_Seed; }

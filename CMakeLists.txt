@@ -3,6 +3,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 project(Minecraft_Recreation_Recreation)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -120,8 +121,10 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/player/Input.h
         src/Engine/block/Block.h
         src/Engine/block/Block.cpp
-        src/Engine/worldgen/ChunkRendering.cpp
-        src/Engine/worldgen/ChunkRendering.h
+        src/Engine/rendering/ChunkRendering.cpp
+        src/Engine/rendering/ChunkRendering.h
+        src/Engine/world/World.cpp
+        src/Engine/world/World.h
 )
 
 FetchContent_GetProperties(imgui)

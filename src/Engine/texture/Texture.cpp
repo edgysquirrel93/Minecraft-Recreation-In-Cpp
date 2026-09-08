@@ -20,7 +20,9 @@ void LoadTexture::loadTextureArray() {
         {.path = "assets/Textures/Blocks/grass_block_top.png",  .layer = BlockLayer::GRASS_TOP},
         {.path = "assets/Textures/Blocks/grass_block_side.png", .layer = BlockLayer::GRASS_SIDE},
         {.path = "assets/Textures/Blocks/bedrock.png", .layer = BlockLayer::BEDROCK},
-        {.path = "assets/Textures/Blocks/glass.png", .layer = BlockLayer::GLASS}
+        {.path = "assets/Textures/Blocks/glass.png", .layer = BlockLayer::GLASS},
+        {.path = "assets/Textures/Blocks/water.png", .layer = BlockLayer::WATER},
+        {.path = "assets/Textures/Blocks/sand.png", .layer = BlockLayer::SAND}
     };
 
     const int totalLayers {static_cast<int>(blocks.size())};

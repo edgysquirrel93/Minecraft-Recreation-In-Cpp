@@ -5,7 +5,6 @@
 
 #include "Engine/ui/UIManager.h"
 #include "Engine/config/SettingsManager.h"
-#include "Engine/worldgen/WorldGen.h"
 
 namespace engine::input
 {
@@ -311,7 +310,7 @@ void Camera::mouseCallback(GLFWwindow* /*window*/, const double xposIn, const do
     m_CameraFront = glm::normalize(front);
 }
 
-std::optional<Camera::RaycastResult> Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world) {
+std::optional<Camera::RaycastResult> Camera::raycast(glm::vec3 start, glm::vec3 dir, float maxDist, world::World& world) {
     if (glm::length2(dir) < 0.0001f) return std::nullopt;
 
     dir = glm::normalize(dir);

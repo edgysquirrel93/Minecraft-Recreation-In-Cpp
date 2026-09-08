@@ -4,14 +4,16 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <vector>
 
-namespace engine::worldgen {
-    class World;
+#include "Engine/world/World.h"
+
+namespace engine::rendering {
 class ChunkRendering {
     using BlockArray = std::array<uint8_t, 16 * 256 * 16>;
     int m_ChunkX{0};
     int m_ChunkZ{0};
     std::array<uint8_t, 16 * 256 * 16> m_BlockIDs{};
     bool m_IsDirty{false};
+    bool m_IsModified{false};
 
     struct Vertex {
         glm::vec3 position;
@@ -35,7 +37,7 @@ public:
     ChunkRendering(const int chunkX, const int chunkZ) : m_ChunkX(chunkX), m_ChunkZ(chunkZ) {}
     ~ChunkRendering();
 
-    void rebuildMesh(const World& world);
+    void rebuildMesh(const world::World& world);
     static void addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, int face, const block::BlockType& block);
 
     [[nodiscard]] uint8_t getBlockID(const int x, const int y, const int z) const {
@@ -55,6 +57,8 @@ public:
     [[nodiscard]] GLuint getVAO() const { return m_ChunkVAO; }
     [[nodiscard]] int getChunkX() const { return m_ChunkX; }
     [[nodiscard]] int getChunkZ() const { return m_ChunkZ; }
+    [[nodiscard]] bool isModified() const noexcept { return m_IsModified; }
+    void clearModified() noexcept { m_IsModified = false; }
 };
 }
 

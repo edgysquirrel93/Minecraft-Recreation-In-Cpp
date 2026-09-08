@@ -8,8 +8,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "Engine/worldgen/ChunkRendering.h"
-#include "Engine/worldgen/WorldGen.h"
+#include "ChunkRendering.h"
 
 namespace engine::rendering
 {
@@ -38,10 +37,10 @@ public:
 
 class Rendering {
     glm::mat4 m_View {};
-    worldgen::World m_World;
+    world::World m_World;
 
     // Rendering Shaders
-    static void renderTransparentBlock(ShaderManager& shaderManager, GLFWwindow* window);
+    static void renderTransparentBlock(ShaderManager& shaderManager);
     void renderMainShader(ShaderManager& shaderManager, GLFWwindow* window);
     static void renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window);
     void renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window);
@@ -50,8 +49,8 @@ public:
     void gameRender(ShaderManager& shaderManager, GLFWwindow* window);
     static void drawBlock(const block::BlockType& blockType, const glm::vec3& position, ShaderManager& shaderManager);
 
-    [[nodiscard]] worldgen::World& getWorld() { return m_World; }
-    [[nodiscard]] const worldgen::World& getWorld() const { return m_World; }
+    [[nodiscard]] world::World& getWorld() { return m_World; }
+    [[nodiscard]] const world::World& getWorld() const { return m_World; }
     [[nodiscard]] glm::mat4 getViewMatrix() const {return m_View;}
     void setViewMatrix(const glm::mat4& v) {m_View = v;}
 };

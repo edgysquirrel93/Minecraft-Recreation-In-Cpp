@@ -31,12 +31,12 @@ void Rendering::drawBlock(const block::BlockType& blockType, const glm::vec3& po
 
 void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
     renderMainShader(shaderManager, window);
-    renderTransparentBlock(shaderManager, window);
+    renderTransparentBlock(shaderManager);
     renderCrosshair(shaderManager, window);
     renderSelectionBox(shaderManager, window);
 }
 
-void Rendering::renderTransparentBlock(ShaderManager& shaderManager, GLFWwindow* window) {
+void Rendering::renderTransparentBlock(ShaderManager& shaderManager) {
     if (const auto* mainShader = shaderManager.get("main"))
     {
         mainShader->use();
@@ -54,7 +54,7 @@ void Rendering::renderTransparentBlock(ShaderManager& shaderManager, GLFWwindow*
 void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* window) {
     int width, height;
 
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(0.4705882352941176f, 0.6549019607843137f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glEnable(GL_DEPTH_TEST);

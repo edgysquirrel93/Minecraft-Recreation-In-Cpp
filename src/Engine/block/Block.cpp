@@ -15,7 +15,9 @@ Block& Block::instance() {
     {"Stone",   BlockLayer::STONE},
     {"Grass",   BlockLayer::GRASS_TOP, BlockLayer::DIRT, BlockLayer::GRASS_SIDE,},
     {"Bedrock", BlockLayer::BEDROCK},
-    {"Glass", BlockLayer::GLASS, false}
+    {"Glass", BlockLayer::GLASS, false},
+    {"Water", BlockLayer::WATER, false},
+    {"Sand", BlockLayer::SAND}
         } {}
 
 const block::BlockType& Block::getBlock(const uint8_t id) const {

@@ -45,6 +45,8 @@ namespace blockregistry {
     constexpr uint8_t ID_GRASS   = 3;
     constexpr uint8_t ID_BEDROCK = 4;
     constexpr uint8_t ID_GLASS   = 5;
+    constexpr uint8_t ID_WATER   = 6;
+    constexpr uint8_t ID_SAND    = 7;
 
     class Block
     {

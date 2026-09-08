@@ -4,8 +4,7 @@
 
 #include "GLFW/glfw3.h"
 #include <glm/gtc/matrix_transform.hpp>
-#include "Engine/worldgen/ChunkRendering.h"
-#include "Engine/worldgen/WorldGen.h"
+#include "../rendering/ChunkRendering.h"
 
 namespace engine::input
 {
@@ -60,7 +59,7 @@ public:
     };
 
     static void mouseCallback(GLFWwindow* /*window*/, double xposIn, double yposIn);
-    static std::optional<RaycastResult> raycast(glm::vec3 start, glm::vec3 dir, float maxDist, worldgen::World& world);
+    static std::optional<RaycastResult> raycast(glm::vec3 start, glm::vec3 dir, float maxDist, world::World& world);
 
     static glm::vec3 getCameraFront() {return m_CameraFront;}
     static void resetMouseFlag() {m_FirstMouse = false;}

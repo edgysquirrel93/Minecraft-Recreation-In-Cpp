@@ -649,6 +649,7 @@ void UIManager::drawSingleplayerScreen() {
         //         startWorldLoad(nameToLoad);
         //     }).detach();
         // }
+        config::LevelData::get().setCurrentWorldName(s_SelectedWorld);
         config::LevelData::get().loadLevel();
         input::Input::enterGameInputMode(s_GlfwWindow);
     }

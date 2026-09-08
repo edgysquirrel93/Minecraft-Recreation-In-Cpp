@@ -1,9 +1,10 @@
 #include "ChunkRendering.h"
 
-#include "WorldGen.h"
+#include "../worldgen/WorldGen.h"
 #include "Engine/rendering/Rendering.h"
+#include "Engine/world/World.h"
 
-namespace engine::worldgen {
+namespace engine::rendering {
 
 ChunkRendering::~ChunkRendering() {
     if (m_ChunkVAO != 0) glDeleteVertexArrays(1, &m_ChunkVAO);
@@ -24,10 +25,11 @@ void ChunkRendering::setBlock(const int x, const int y, const int z, const uint8
     if (const int index = getIndex(x, y, z); m_BlockIDs[index] != blockID) {
         m_BlockIDs[index] = blockID;
         m_IsDirty = true;
+        m_IsModified = true;
     }
 }
 
-void ChunkRendering::rebuildMesh(const World& world) {
+void ChunkRendering::rebuildMesh(const world::World& world) {
     std::vector<Vertex> vertices;
 
     const int worldXOffset = m_ChunkX * 16;
