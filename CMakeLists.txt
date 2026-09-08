@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.18)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 project(Minecraft_Recreation_Recreation)
@@ -7,17 +7,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(ASSET_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.1/assets.zip")
-set(SHADERS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-v0.2/assets.zip")
-set(ASSET_ZIP_PATH "${CMAKE_BINARY_DIR}/assets.zip")
-set(SHADERS_ZIP_PATH "${CMAKE_BINARY_DIR}/assets/Shaders.zip")
-set(ASSET_EXTRACT_DIR "${CMAKE_BINARY_DIR}/assets")
-set(SHADERS_EXTRACT_DIR "${CMAKE_BINARY_DIR}/assets/Shaders")
+set(ASSET_DIR "${CMAKE_SOURCE_DIR}/assets")
 
-if(NOT EXISTS "${ASSET_EXTRACT_DIR}")
-    message(STATUS "Assets not found! Downloading from ${ASSET_URL}...")
+file(MAKE_DIRECTORY "${ASSET_DIR}")
 
-    file(DOWNLOAD "${ASSET_URL}" "${ASSET_ZIP_PATH}"
+set(FONTS_URL "https://github.com/IdreesInc/Monocraft/releases/download/v4.2.1/Monocraft-ttf.zip")
+set(SONGS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-songs/assets.zip")
+set(SHADERS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-shaders/assets.zip")
+set(TEXTURES_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-textures/assets.zip")
+set(SOUNDEFFECTS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-soundeffects/assets.zip")
+
+set(FONTS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_fonts.zip")
+set(SONGS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_songs.zip")
+set(SOUNDEFFECTS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_soundeffects.zip")
+set(SHADERS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_shaders.zip")
+set(TEXTURES_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_textures.zip")
+
+set(FONTS_CHECK_DIR "${ASSET_DIR}/Fonts/Monocraft-ttf")
+set(SONGS_CHECK_DIR "${ASSET_DIR}/Sound/Music")
+set(SOUNDEFFECTS_CHECK_DIR "${ASSET_DIR}/Sound/SoundEffects")
+set(SHADERS_CHECK_DIR "${ASSET_DIR}/Shaders")
+set(TEXTURES_CHECK_DIR "${ASSET_DIR}/Textures")
+
+if(NOT EXISTS "${FONTS_CHECK_DIR}/")
+    message(STATUS "Fonts not found! Downloading from ${FONTS_URL}...")
+
+    file(DOWNLOAD "${FONTS_URL}" "${FONTS_ZIP_PATH}"
             SHOW_PROGRESS
             STATUS download_status
     )
@@ -26,17 +41,55 @@ if(NOT EXISTS "${ASSET_EXTRACT_DIR}")
     list(GET download_status 1 status_message)
 
     if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting to ${ASSET_EXTRACT_DIR}")
-
-        file(ARCHIVE_EXTRACT INPUT "${ASSET_ZIP_PATH}" DESTINATION "${CMAKE_BINARY_DIR}")
-
-        file(REMOVE "${ASSET_ZIP_PATH}")
+        message(STATUS "Download complete! Extracting Fonts...")
+        file(ARCHIVE_EXTRACT INPUT "${FONTS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Fonts/")
+        file(REMOVE "${FONTS_ZIP_PATH}")
     else()
-        message(FATAL_ERROR "Failed to download assets: ${status_message}")
+        message(FATAL_ERROR "Failed to download Fonts: ${status_message}")
     endif()
 endif()
 
-if(NOT EXISTS "${SHADERS_EXTRACT_DIR}")
+if(NOT EXISTS "${SONGS_CHECK_DIR}/")
+    message(STATUS "Songs not found! Downloading from ${SONGS_URL}...")
+
+    file(DOWNLOAD "${SONGS_URL}" "${SONGS_ZIP_PATH}"
+            SHOW_PROGRESS
+            STATUS download_status
+    )
+
+    list(GET download_status 0 status_code)
+    list(GET download_status 1 status_message)
+
+    if(status_code EQUAL 0)
+        message(STATUS "Download complete! Extracting songs...")
+        file(ARCHIVE_EXTRACT INPUT "${SONGS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Sounds/Music")
+        file(REMOVE "${SONGS_ZIP_PATH}")
+    else()
+        message(FATAL_ERROR "Failed to download songs: ${status_message}")
+    endif()
+endif()
+
+if(NOT EXISTS "${SOUNDEFFECTS_CHECK_DIR}/")
+    message(STATUS "Sound effects not found! Downloading from ${SOUNDEFFECTS_URL}...")
+
+    file(DOWNLOAD "${SOUNDEFFECTS_URL}" "${SOUNDEFFECTS_ZIP_PATH}"
+            SHOW_PROGRESS
+            STATUS download_status
+    )
+
+    list(GET download_status 0 status_code)
+    list(GET download_status 1 status_message)
+
+    if(status_code EQUAL 0)
+        message(STATUS "Download complete! Extracting sound effects...")
+        file(ARCHIVE_EXTRACT INPUT "${SOUNDEFFECTS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Sounds/SoundEffects")
+        file(REMOVE "${SOUNDEFFECTS_ZIP_PATH}")
+    else()
+        message(FATAL_ERROR "Failed to download sound effects: ${status_message}")
+    endif()
+endif()
+
+if(NOT EXISTS "${SHADERS_CHECK_DIR}/Vertices")
     message(STATUS "Shaders not found! Downloading from ${SHADERS_URL}...")
 
     file(DOWNLOAD "${SHADERS_URL}" "${SHADERS_ZIP_PATH}"
@@ -48,13 +101,31 @@ if(NOT EXISTS "${SHADERS_EXTRACT_DIR}")
     list(GET download_status 1 status_message)
 
     if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting to ${SHADERS_EXTRACT_DIR}")
-
-        file(ARCHIVE_EXTRACT INPUT "${SHADERS_ZIP_PATH}" DESTINATION "${CMAKE_BINARY_DIR}")
-
+        message(STATUS "Download complete! Extracting shaders...")
+        file(ARCHIVE_EXTRACT INPUT "${SHADERS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Shaders")
         file(REMOVE "${SHADERS_ZIP_PATH}")
     else()
         message(FATAL_ERROR "Failed to download shaders: ${status_message}")
+    endif()
+endif()
+
+if(NOT EXISTS "${TEXTURES_CHECK_DIR}/Blocks")
+    message(STATUS "Textures not found! Downloading from ${TEXTURES_URL}...")
+
+    file(DOWNLOAD "${TEXTURES_URL}" "${TEXTURES_ZIP_PATH}"
+            SHOW_PROGRESS
+            STATUS download_status
+    )
+
+    list(GET download_status 0 status_code)
+    list(GET download_status 1 status_message)
+
+    if(status_code EQUAL 0)
+        message(STATUS "Download complete! Extracting textures...")
+        file(ARCHIVE_EXTRACT INPUT "${TEXTURES_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Textures")
+        file(REMOVE "${TEXTURES_ZIP_PATH}")
+    else()
+        message(FATAL_ERROR "Failed to download textures: ${status_message}")
     endif()
 endif()
 

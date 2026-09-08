@@ -66,6 +66,7 @@ public:
     }
 
     [[nodiscard]] const block::BlockType& getBlockAt(int worldX, int worldY, int worldZ) const;
+    [[nodiscard]] uint8_t getBlockIDAt(int worldX, int worldY, int worldZ) const;
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
 

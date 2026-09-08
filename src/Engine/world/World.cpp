@@ -99,6 +99,21 @@ const block::BlockType& World::getBlockAt(const int worldX, const int worldY, co
     return blockregistry::get(blockregistry::ID_AIR);
 }
 
+uint8_t World::getBlockIDAt(const int worldX, const int worldY, const int worldZ) const {
+    if (worldY < 0 || worldY >= 256) {
+        return blockregistry::ID_AIR;
+    }
+
+    const int chunkX{toChunkCoord(worldX)};
+    const int chunkZ{toChunkCoord(worldZ)};
+
+    if (const rendering::ChunkRendering* chunk{getChunk(chunkX, chunkZ)}) {
+        return chunk->getBlockID(toLocalCoord(worldX), worldY, toLocalCoord(worldZ));
+    }
+
+    return blockregistry::ID_AIR;
+}
+
 void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
     if (worldY < 0 || worldY >= 256) return;
 

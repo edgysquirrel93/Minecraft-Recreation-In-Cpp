@@ -28,6 +28,7 @@ class Player {
     static inline bool s_IsFlying {false};
     static inline float s_LastSpaceTime {0.0f};
     static inline bool s_LeftMousePressed {false};
+    static inline bool s_MiddleMousePressed {false};
     static inline bool s_RightMousePressed {false};
     static inline uint8_t s_BuildingBlock;
     static void processSurvivalMovement(GLFWwindow* window, float deltaTime);

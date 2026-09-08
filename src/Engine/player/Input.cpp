@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <glm/gtx/norm.hpp>
+#include <print>
+#include <utility>
 
 #include "Engine/ui/UIManager.h"
 #include "Engine/config/SettingsManager.h"
@@ -183,6 +185,8 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime)
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_STONE;
     if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_BEDROCK;
     if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GLASS;
+    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_WATER;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_SAND;
 
     auto hitResult = Camera::raycast(
         config::LevelData::get().getCameraPos(),
@@ -197,6 +201,14 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime)
         config::LevelData::get().getWorld()->setBlockAt(blockPos.x, blockPos.y, blockPos.z, blockregistry::ID_AIR);
     }
     s_LeftMousePressed = currentLeft;
+
+    bool currentMiddle {glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS};
+
+    if (currentMiddle && !s_MiddleMousePressed && hitResult.has_value()) {
+        const auto [blockPos, placePos] = *hitResult;
+        s_BuildingBlock = config::LevelData::get().getWorld()->getBlockIDAt(blockPos.x, blockPos.y, blockPos.z);
+    }
+    s_MiddleMousePressed = currentMiddle;
 
     bool currentRight = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
     if (currentRight && !s_RightMousePressed && hitResult.has_value()) {
