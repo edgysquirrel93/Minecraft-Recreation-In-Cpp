@@ -45,7 +45,7 @@ void Engine::gameLoop()
             const float frameTime {std::min(deltaTime, 0.1f)};
             input::Input::processInput(window);
             input::Player::processMovement(window, frameTime);
-            m_Rendering.getWorld().update(config::LevelData::get().getCameraPos());
+            m_Rendering.getWorld().update(config::LevelData::get().getCameraPos(), m_ThreadPool);
             glEnable(GL_DEPTH_TEST);
             m_Rendering.gameRender(*m_ShaderManager, window);
         }

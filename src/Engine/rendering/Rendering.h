@@ -9,6 +9,8 @@
 #include <unordered_map>
 
 #include "ChunkRendering.h"
+#include "Engine/util/ThreadPool.h"
+#include "Engine/world/World.h"
 
 namespace engine::rendering
 {
@@ -38,6 +40,7 @@ public:
 class Rendering {
     glm::mat4 m_View {};
     world::World m_World;
+    util::ThreadPool m_ThreadPool;
 
     // Rendering Shaders
     static void renderTransparentBlock(ShaderManager& shaderManager);

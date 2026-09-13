@@ -1340,13 +1340,12 @@ void UIManager::drawDebugMenuScreen() {
     drawMCText(std::format("(fps: {})", static_cast<int>(fps)));
 
     const glm::vec3 cameraPos {config::LevelData::get().getCameraPos()};
-    std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
     long long seed {config::LevelData::get().getSeed()};
     const float lineHeight {22.0f / s_Scale};
     float currentY {26.0f / s_Scale};
 
     ImGui::SetCursorPos(ImVec2(leftMargin, currentY));
-    drawMCText("World Name: " + currentWorldName);
+    drawMCText("World Name: " + config::LevelData::get().getCurrentWorldName());
 
     ImGui::SetCursorPos(ImVec2(leftMargin, currentY += lineHeight));
     drawMCText(std::format("x: {:.3f}", cameraPos.x));

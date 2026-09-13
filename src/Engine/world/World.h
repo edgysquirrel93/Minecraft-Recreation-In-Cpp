@@ -2,10 +2,15 @@
 #define MINECRAFT_RECREATION_RECREATION_WORLD_H
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
+#include <shared_mutex>
 
 #include "Engine/block/Block.h"
+#include "Engine/rendering/ChunkRendering.h"
+#include "Engine/shaders/shaders.h"
 #include "Engine/worldgen/WorldGen.h"
-#include "glm/vec3.hpp"
+#include "Engine/util/ThreadPool.h"
+#include "Engine/util/ConcurrentQueue.h"
 
 namespace engine::rendering
 {
@@ -14,6 +19,11 @@ namespace engine::rendering
 
 namespace engine::world {
 class World {
+    util::ConcurrentQueue<rendering::ChunkRendering::ChunkMeshData> m_CompletedMeshQueue;
+    util::ConcurrentQueue<std::unique_ptr<rendering::ChunkRendering>> m_CompletedGenQueue;
+    std::unordered_set<uint64_t> m_PendingMeshKeys;
+    std::unordered_set<uint64_t> m_GeneratingChunkKeys;
+    mutable std::shared_mutex m_ChunksMutex;
     std::unordered_map<uint64_t, std::unique_ptr<rendering::ChunkRendering>> m_Chunks;
     worldgen::WorldGen m_WorldGen;
     static constexpr uint32_t CHUNK_FILE_MAGIC {0x564F584C};
@@ -31,9 +41,6 @@ public:
 
     World(const World&) = delete;
     World& operator=(const World&) = delete;
-
-    World(World&&) noexcept = default;
-    World& operator=(World&&) noexcept = default;
 
     static uint64_t getChunkKey(const int chunkX, const int chunkZ) {
         return (static_cast<uint64_t>(static_cast<uint32_t>(chunkX)) << 32) |
@@ -60,9 +67,9 @@ public:
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
 
-    void update(const glm::vec3& playerPos);
+    void update(const glm::vec3& playerPos, util::ThreadPool& threadPool);
 
-    void render() const;
+    void render(const shaders::Shader& shader);
 
     static void saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk);
     static bool loadChunk(int cx, int cz, rendering::ChunkRendering* chunk);

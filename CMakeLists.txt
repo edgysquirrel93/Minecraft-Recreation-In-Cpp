@@ -3,6 +3,10 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 project(Minecraft_Recreation_Recreation)
 
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -61,7 +65,7 @@ add_library(my_glad STATIC ${glad_SOURCE_DIR}/src/gl.c)
 target_include_directories(my_glad PUBLIC ${glad_SOURCE_DIR}/include)
 
 # ImGui
-FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.90.4 GIT_SHALLOW ON)
+FetchContent_Declare(imgui URL https://github.com/ocornut/imgui/archive/refs/tags/v1.90.4.tar.gz)
 FetchContent_MakeAvailable(imgui)
 
 add_library(imgui_lib STATIC
@@ -82,7 +86,7 @@ target_include_directories(imgui_lib PUBLIC
 target_link_libraries(imgui_lib PRIVATE glfw my_glad)
 
 # GLM
-FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 0.9.9.8 GIT_SHALLOW ON)
+FetchContent_Declare(glm URL https://github.com/g-truc/glm/archive/refs/tags/0.9.9.8.tar.gz)
 FetchContent_MakeAvailable(glm)
 
 # STB
@@ -92,7 +96,7 @@ add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_SOURCE_DIR})
 
 # nlohmann/json
-FetchContent_Declare(json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.11.3 GIT_SHALLOW ON)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
 # Miniaudio
@@ -136,6 +140,8 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/rendering/ChunkRendering.h
         src/Engine/world/World.cpp
         src/Engine/world/World.h
+        src/Engine/util/ThreadPool.h
+        src/Engine/util/ConcurrentQueue.h
 )
 target_include_directories(Minecraft_Recreation_Recreation PRIVATE
         src

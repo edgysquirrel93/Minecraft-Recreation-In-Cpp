@@ -77,7 +77,7 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
         const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
         const glm::vec3 cameraView  = input::Camera::getCameraFront();
 
-        m_World.update(cameraPos);
+        m_World.update(cameraPos, m_ThreadPool);
 
         const glm::mat4 projection {glm::perspective(
                 glm::radians(input::Player::getTargetFov()),
@@ -91,7 +91,7 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
 
         mainShader->setMat4("model", glm::mat4(1.0f));
 
-        m_World.render();
+        m_World.render(*mainShader);
     }
 }
 

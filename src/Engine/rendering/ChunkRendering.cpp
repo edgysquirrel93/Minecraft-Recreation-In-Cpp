@@ -29,8 +29,8 @@ void ChunkRendering::setBlock(const int x, const int y, const int z, const uint8
     }
 }
 
-void ChunkRendering::rebuildMesh(const world::World& world) {
-    std::vector<Vertex> vertices;
+ChunkRendering::ChunkMeshData ChunkRendering::buildMeshDataCPU(const world::World& world) const {
+    ChunkMeshData data{ .chunkX = m_ChunkX, .chunkZ = m_ChunkZ };
 
     const int worldXOffset = m_ChunkX * 16;
     const int worldZOffset = m_ChunkZ * 16;
@@ -50,7 +50,6 @@ void ChunkRendering::rebuildMesh(const world::World& world) {
                     const int nz = z + dir.z;
 
                     block::BlockType neighborBlock;
-
                     if (nx >= 0 && nx < 16 && ny >= 0 && ny < 256 && nz >= 0 && nz < 16) {
                         neighborBlock = getBlockAt(nx, ny, nz);
                     } else {
@@ -58,31 +57,43 @@ void ChunkRendering::rebuildMesh(const world::World& world) {
                     }
 
                     if (!neighborBlock.isOpaque && neighborBlock != block) {
-                        addFaceVertices(vertices, worldBlockPos, face, block);
+                        addFaceVertices(data.vertices, worldBlockPos, face, block);
                     }
                 }
             }
         }
     }
+    return data;
+}
+
+void ChunkRendering::uploadGPU(const std::vector<Vertex>& vertices) {
+    if (vertices.empty()) {
+        m_VertexCount = 0;
+        m_IsDirty = false;
+        return;
+    }
 
     if (m_ChunkVAO == 0) {
         glGenVertexArrays(1, &m_ChunkVAO);
         glGenBuffers(1, &m_ChunkVBO);
+
+        glBindVertexArray(m_ChunkVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, position)));
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texCoords)));
+        glEnableVertexAttribArray(1);
+
+        glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texIndex)));
+        glEnableVertexAttribArray(2);
+    } else {
+        glBindVertexArray(m_ChunkVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
     }
 
-    glBindVertexArray(m_ChunkVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)), vertices.data(), GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, position)));
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texCoords)));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texIndex)));
-    glEnableVertexAttribArray(2);
-
     m_VertexCount = static_cast<GLsizei>(vertices.size());
     m_IsDirty = false;
 }

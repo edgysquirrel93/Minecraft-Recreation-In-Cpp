@@ -4,22 +4,19 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <vector>
 
-#include "Engine/world/World.h"
+namespace engine::world {
+    class World;
+}
 
 namespace engine::rendering {
 class ChunkRendering {
+
     using BlockArray = std::array<uint8_t, 16 * 256 * 16>;
     int m_ChunkX{0};
     int m_ChunkZ{0};
     std::array<uint8_t, 16 * 256 * 16> m_BlockIDs{};
     bool m_IsDirty{false};
     bool m_IsModified{false};
-
-    struct Vertex {
-        glm::vec3 position;
-        glm::vec2 texCoords;
-        float texIndex;
-    };
 
     const glm::ivec3 NEIGHBORS[6] = {
         { 0,  0, -1}, // Back -Z
@@ -31,13 +28,27 @@ class ChunkRendering {
     };
 
     GLuint m_ChunkVAO {0}, m_ChunkVBO {0};
+
     GLsizei m_VertexCount{0};
 
 public:
+    struct Vertex {
+        glm::vec3 position;
+        glm::vec2 texCoords;
+        float texIndex;
+    };
+
+    struct ChunkMeshData {
+        int chunkX{0};
+        int chunkZ{0};
+        std::vector<Vertex> vertices;
+    };
+
     ChunkRendering(const int chunkX, const int chunkZ) : m_ChunkX(chunkX), m_ChunkZ(chunkZ) {}
     ~ChunkRendering();
 
-    void rebuildMesh(const world::World& world);
+    [[nodiscard]] ChunkMeshData buildMeshDataCPU(const world::World& world) const;
+    void uploadGPU(const std::vector<Vertex>& vertices);
     static void addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, int face, const block::BlockType& block);
 
     [[nodiscard]] uint8_t getBlockID(const int x, const int y, const int z) const {

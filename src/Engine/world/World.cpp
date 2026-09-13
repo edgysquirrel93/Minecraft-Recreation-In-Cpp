@@ -88,6 +88,7 @@ void World::saveAllChunks() {
 }
 
 const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) const {
+    std::shared_lock lock(m_ChunksMutex);
     const uint64_t key = getChunkKey(chunkX, chunkZ);
     if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
         return it->second.get();
@@ -96,6 +97,7 @@ const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chu
 }
 
 rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) {
+    std::shared_lock lock(m_ChunksMutex);
     const uint64_t key = getChunkKey(chunkX, chunkZ);
     if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
         return it->second.get();
@@ -108,18 +110,6 @@ void World::markNeighborsDirty(const int chunkX, const int chunkZ) {
     if (auto* south = getChunk(chunkX, chunkZ - 1)) south->makeDirty();
     if (auto* east  = getChunk(chunkX + 1, chunkZ)) east->makeDirty();
     if (auto* west  = getChunk(chunkX - 1, chunkZ)) west->makeDirty();
-}
-
-const block::BlockType& World::getBlockAt(const int worldX, const int worldY, const int worldZ) const {
-    if (worldY < 0 || worldY >= 256) return blockregistry::get(blockregistry::ID_AIR);
-
-    const int chunkX{toChunkCoord(worldX)};
-    const int chunkZ{toChunkCoord(worldZ)};
-
-    if (const rendering::ChunkRendering* chunk{getChunk(chunkX, chunkZ)}) {
-        return chunk->getBlockAt(toLocalCoord(worldX), worldY, toLocalCoord(worldZ));
-    }
-    return blockregistry::get(blockregistry::ID_AIR);
 }
 
 uint8_t World::getBlockIDAt(const int worldX, const int worldY, const int worldZ) const {
@@ -137,6 +127,28 @@ uint8_t World::getBlockIDAt(const int worldX, const int worldY, const int worldZ
     return blockregistry::ID_AIR;
 }
 
+const block::BlockType& World::getBlockAt(const int worldX, const int worldY, const int worldZ) const {
+    if (worldY < 0 || worldY >= 256) {
+        return blockregistry::get(blockregistry::ID_AIR);
+    }
+
+    const int chunkX = toChunkCoord(worldX);
+    const int chunkZ = toChunkCoord(worldZ);
+    const uint64_t key = getChunkKey(chunkX, chunkZ);
+
+    std::shared_lock lock(m_ChunksMutex);
+
+    const auto it = m_Chunks.find(key);
+    if (it == m_Chunks.end() || !it->second) {
+        return blockregistry::get(blockregistry::ID_AIR);
+    }
+
+    const int localX = toLocalCoord(worldX);
+    const int localZ = toLocalCoord(worldZ);
+
+    return it->second->getBlockAt(localX, worldY, localZ);
+}
+
 void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
     if (worldY < 0 || worldY >= 256) return;
 
@@ -147,64 +159,118 @@ void World::setBlockAt(const int worldX, const int worldY, const int worldZ, con
 
     if (rendering::ChunkRendering* chunk = getChunk(chunkX, chunkZ)) {
         chunk->setBlock(localX, worldY, localZ, blockID);
-        chunk->makeDirty();
+
+        const auto meshData = chunk->buildMeshDataCPU(*this);
+        chunk->uploadGPU(meshData.vertices);
 
         if (localX == 0) {
-            if (auto* neighbor = getChunk(chunkX - 1, chunkZ)) neighbor->makeDirty();
+            if (auto* neighbor = getChunk(chunkX - 1, chunkZ)) {
+                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
+            }
         } else if (localX == 15) {
-            if (auto* neighbor = getChunk(chunkX + 1, chunkZ)) neighbor->makeDirty();
+            if (auto* neighbor = getChunk(chunkX + 1, chunkZ)) {
+                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
+            }
         }
 
         if (localZ == 0) {
-            if (auto* neighbor = getChunk(chunkX, chunkZ - 1)) neighbor->makeDirty();
+            if (auto* neighbor = getChunk(chunkX, chunkZ - 1)) {
+                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
+            }
         } else if (localZ == 15) {
-            if (auto* neighbor = getChunk(chunkX, chunkZ + 1)) neighbor->makeDirty();
-        }
-    }
-}
-
-void World::update(const glm::vec3& playerPos) {
-    const int renderDistance = config::SettingsManager::get().getRenderDistance();
-
-    const int centerChunkX{toChunkCoord(static_cast<int>(playerPos.x))};
-    const int centerChunkZ{toChunkCoord(static_cast<int>(playerPos.z))};
-
-    for (int x = centerChunkX - renderDistance; x <= centerChunkX + renderDistance; ++x) {
-        for (int z = centerChunkZ - renderDistance; z <= centerChunkZ + renderDistance; ++z) {
-            if (const uint64_t key = getChunkKey(x, z); !m_Chunks.contains(key)) {
-                auto chunk = std::make_unique<rendering::ChunkRendering>(x, z);
-                if (!loadChunk(x, z, chunk.get())) {
-                    m_WorldGen.generateChunkData(*chunk);
-                }
-                m_Chunks[key] = std::move(chunk);
-                markNeighborsDirty(x, z);
+            if (auto* neighbor = getChunk(chunkX, chunkZ + 1)) {
+                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
             }
         }
     }
+}
 
-    for (const auto& chunk : m_Chunks | std::views::values) {
-        if (chunk->isDirty()) {
-            chunk->rebuildMesh(*this);
+void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
+    std::unique_ptr<rendering::ChunkRendering> generatedChunk;
+
+    while (m_CompletedGenQueue.tryPop(generatedChunk)) {
+        const int cx = generatedChunk->getChunkX();
+        const int cz = generatedChunk->getChunkZ();
+        const uint64_t key = getChunkKey(cx, cz);
+
+        generatedChunk->makeDirty();
+
+        {
+            std::unique_lock lock(m_ChunksMutex);
+            m_Chunks[key] = std::move(generatedChunk);
+        }
+
+        m_GeneratingChunkKeys.erase(key);
+
+        markNeighborsDirty(cx, cz);
+    }
+
+    rendering::ChunkRendering::ChunkMeshData meshData;
+    while (m_CompletedMeshQueue.tryPop(meshData)) {
+        const uint64_t key = getChunkKey(meshData.chunkX, meshData.chunkZ);
+
+        if (auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+            it->second->uploadGPU(meshData.vertices);
+        }
+        m_PendingMeshKeys.erase(key);
+    }
+
+    const int playerChunkX = toChunkCoord(static_cast<int>(std::floor(playerPos.x)));
+    const int playerChunkZ = toChunkCoord(static_cast<int>(std::floor(playerPos.z)));
+    const int renderDistance {config::SettingsManager::get().getRenderDistance()};
+
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
+        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+            const int cx = playerChunkX + dx;
+            const int cz = playerChunkZ + dz;
+            const uint64_t key = getChunkKey(cx, cz);
+
+            if (m_Chunks.contains(key) || m_GeneratingChunkKeys.contains(key)) {
+                continue;
+            }
+
+            m_GeneratingChunkKeys.insert(key);
+
+            threadPool.enqueue([this, cx, cz]() {
+                auto chunk = std::make_unique<rendering::ChunkRendering>(cx, cz);
+
+                if (!loadChunk(cx, cz, chunk.get())) {
+                    m_WorldGen.generateChunkData(*chunk);
+                }
+
+                m_CompletedGenQueue.push(std::move(chunk));
+            });
         }
     }
 
-    for (auto it = m_Chunks.begin(); it != m_Chunks.end();) {
-        if (std::abs(it->second->getChunkX() - centerChunkX) > renderDistance + 1 ||
-            std::abs(it->second->getChunkZ() - centerChunkZ) > renderDistance + 1) {
-            saveChunk(it->second->getChunkX(), it->second->getChunkZ(), it->second.get());
-            markNeighborsDirty(it->second->getChunkX(), it->second->getChunkZ());
-            it = m_Chunks.erase(it);
-            } else {
-                ++it;
+    for (auto& [key, chunk] : m_Chunks) {
+        if (chunk->isDirty() && !m_PendingMeshKeys.contains(key)) {
+            m_PendingMeshKeys.insert(key);
+            chunk->clearDirty();
+
+            threadPool.enqueue([this, cX = chunk->getChunkX(), cZ = chunk->getChunkZ()]
+            {
+                if (const auto* targetChunk = getChunk(cX, cZ)) {
+                    auto result = targetChunk->buildMeshDataCPU(*this);
+                    m_CompletedMeshQueue.push(std::move(result));
+                }
+            });
         }
     }
 }
-void World::render() const {
+
+void World::render(const shaders::Shader& shader) {
+    shader.use();
+
     for (const auto& chunk : m_Chunks | std::views::values) {
-        if (chunk && chunk->getVertex() > 0) {
-            glBindVertexArray(chunk->getVAO());
-            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(chunk->getVertex()));
-        }
+
+        if (chunk->getVertex() == 0) continue;
+
+        glBindVertexArray(chunk->getVAO());
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLint>(chunk->getVertex()));
     }
+
+    glBindVertexArray(0);
 }
+
 }
