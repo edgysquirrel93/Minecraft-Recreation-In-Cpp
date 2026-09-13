@@ -87,6 +87,29 @@ void World::saveAllChunks() {
     }
 }
 
+const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) const {
+    const uint64_t key = getChunkKey(chunkX, chunkZ);
+    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) {
+    const uint64_t key = getChunkKey(chunkX, chunkZ);
+    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+void World::markNeighborsDirty(const int chunkX, const int chunkZ) {
+    if (auto* north = getChunk(chunkX, chunkZ + 1)) north->makeDirty();
+    if (auto* south = getChunk(chunkX, chunkZ - 1)) south->makeDirty();
+    if (auto* east  = getChunk(chunkX + 1, chunkZ)) east->makeDirty();
+    if (auto* west  = getChunk(chunkX - 1, chunkZ)) west->makeDirty();
+}
+
 const block::BlockType& World::getBlockAt(const int worldX, const int worldY, const int worldZ) const {
     if (worldY < 0 || worldY >= 256) return blockregistry::get(blockregistry::ID_AIR);
 
@@ -154,6 +177,7 @@ void World::update(const glm::vec3& playerPos) {
                     m_WorldGen.generateChunkData(*chunk);
                 }
                 m_Chunks[key] = std::move(chunk);
+                markNeighborsDirty(x, z);
             }
         }
     }
@@ -168,6 +192,7 @@ void World::update(const glm::vec3& playerPos) {
         if (std::abs(it->second->getChunkX() - centerChunkX) > renderDistance + 1 ||
             std::abs(it->second->getChunkZ() - centerChunkZ) > renderDistance + 1) {
             saveChunk(it->second->getChunkX(), it->second->getChunkZ(), it->second.get());
+            markNeighborsDirty(it->second->getChunkX(), it->second->getChunkZ());
             it = m_Chunks.erase(it);
             } else {
                 ++it;

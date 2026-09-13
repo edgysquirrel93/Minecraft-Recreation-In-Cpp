@@ -49,21 +49,11 @@ public:
         return local < 0 ? local + 16 : local;
     }
 
-    [[nodiscard]] const rendering::ChunkRendering* getChunk(const int chunkX, const int chunkZ) const {
-        const uint64_t key = getChunkKey(chunkX, chunkZ);
-        if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
-            return it->second.get();
-        }
-        return nullptr;
-    }
+    [[nodiscard]] const rendering::ChunkRendering* getChunk(int chunkX, int chunkZ) const;
 
-    [[nodiscard]] rendering::ChunkRendering* getChunk(const int chunkX, const int chunkZ) {
-        const uint64_t key = getChunkKey(chunkX, chunkZ);
-        if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
-            return it->second.get();
-        }
-        return nullptr;
-    }
+    [[nodiscard]] rendering::ChunkRendering* getChunk(int chunkX, int chunkZ);
+
+    void markNeighborsDirty(int chunkX, int chunkZ);
 
     [[nodiscard]] const block::BlockType& getBlockAt(int worldX, int worldY, int worldZ) const;
     [[nodiscard]] uint8_t getBlockIDAt(int worldX, int worldY, int worldZ) const;

@@ -1298,55 +1298,69 @@ void UIManager::drawPauseMenuScreen() {
 }
 
 void UIManager::drawDebugMenuScreen() {
-    static double lastTime = glfwGetTime();
-    static int frameCount = 0;
-    static double fps = 0;
+    static double lastTime {0.0};
+    static int frameCount {0};
+    static double fps {0.0};
+
+    const double currentTime {glfwGetTime()};
+
+    if (lastTime == 0.0 || (currentTime - lastTime) > 2.0) {
+        lastTime = currentTime;
+        frameCount = 0;
+    }
+
+    frameCount++;
+    if (currentTime - lastTime >= 1.0) {
+        fps = static_cast<double>(frameCount) / (currentTime - lastTime);
+        frameCount = 0;
+        lastTime = currentTime;
+    }
 
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(getIO().DisplaySize);
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+
     ImGui::Begin("DebugScreen", nullptr,
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoScrollbar);
-    {
-        ImGui::PushFont(s_McFont);
 
-        const double currentTime {glfwGetTime()};
-        frameCount++;
+    ImGui::PushFont(s_McFont);
 
-        if (currentTime - lastTime >= 1.0) {
-            fps = frameCount / (currentTime - lastTime);
-            frameCount = 0;
-            lastTime = currentTime;
-        }
+    ImGui::SetWindowFontScale(s_Scale);
 
-        const ImVec2 gameTitle {ImGui::CalcTextSize("Minecraft Recreation ")};
+    const float leftMargin {10.0f / s_Scale};
+    const float topPos {2.0f / s_Scale};
 
-        ImGui::SetCursorPos(ImVec2(10, 2));
-        drawMCText("Minecraft Recreation");
+    drawMCText("Minecraft Recreation ");
+    const ImVec2 titleSize {ImGui::CalcTextSize("Minecraft Recreation ")};
 
-        ImGui::SetCursorPos(ImVec2(gameTitle.x, 2));
-        drawMCText("(fps: " + std::to_string(static_cast<int>(fps)) + ")");
+    ImGui::SetCursorPos(ImVec2(leftMargin + titleSize.x, topPos));
+    drawMCText(std::format("(fps: {})", static_cast<int>(fps)));
 
-        const long long seed {config::LevelData::get().getSeed()};
-        const glm::vec3 cameraPos {config::LevelData::get().getCameraPos()};
+    const glm::vec3 cameraPos {config::LevelData::get().getCameraPos()};
+    std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
+    long long seed {config::LevelData::get().getSeed()};
+    const float lineHeight {22.0f / s_Scale};
+    float currentY {26.0f / s_Scale};
 
-        ImGui::SetCursorPos(ImVec2(10, 26));
-        drawMCText("x: " + std::to_string(cameraPos.x));
-        ImGui::SetCursorPos(ImVec2(10, 48));
-        drawMCText("y: " + std::to_string(cameraPos.y - 1.62));
-        ImGui::SetCursorPos(ImVec2(10, 70));
-        drawMCText("z: " + std::to_string(cameraPos.z));
-        ImGui::SetCursorPos(ImVec2(10, 92));
-        drawMCText("seed: " + std::to_string(seed));
+    ImGui::SetCursorPos(ImVec2(leftMargin, currentY));
+    drawMCText("World Name: " + currentWorldName);
 
-        ImGui::SetCursorPos(ImVec2(gameTitle.x + 100, 20));
-        ImGui::Dummy(ImVec2(1, 1));
+    ImGui::SetCursorPos(ImVec2(leftMargin, currentY += lineHeight));
+    drawMCText(std::format("x: {:.3f}", cameraPos.x));
 
-        ImGui::PopFont();
-    }
+    ImGui::SetCursorPos(ImVec2(leftMargin, currentY += lineHeight));
+    drawMCText(std::format("y: {:.3f}", cameraPos.y - 1.62f));
+
+    ImGui::SetCursorPos(ImVec2(leftMargin, currentY += lineHeight));
+    drawMCText(std::format("z: {:.3f}", cameraPos.z));
+
+    ImGui::SetCursorPos(ImVec2(leftMargin, currentY += lineHeight));
+    drawMCText(std::format("seed: {}", seed));
+
+    ImGui::PopFont();
     ImGui::End();
 }
 

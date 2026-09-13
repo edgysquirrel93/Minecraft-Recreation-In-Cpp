@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(ASSET_DIR "${CMAKE_SOURCE_DIR}/assets")
-
 file(MAKE_DIRECTORY "${ASSET_DIR}")
 
 set(FONTS_URL "https://github.com/IdreesInc/Monocraft/releases/download/v4.2.1/Monocraft-ttf.zip")
@@ -17,153 +16,94 @@ set(SHADERS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/r
 set(TEXTURES_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-textures/assets.zip")
 set(SOUNDEFFECTS_URL "https://github.com/edgysquirrel93/Minecraft-Recreation-In-Cpp/releases/download/assets-soundeffects/assets.zip")
 
-set(FONTS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_fonts.zip")
-set(SONGS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_songs.zip")
-set(SOUNDEFFECTS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_soundeffects.zip")
-set(SHADERS_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_shaders.zip")
-set(TEXTURES_ZIP_PATH "${CMAKE_BINARY_DIR}/temp_textures.zip")
-
 set(FONTS_CHECK_DIR "${ASSET_DIR}/Fonts/Monocraft-ttf")
 set(SONGS_CHECK_DIR "${ASSET_DIR}/Sound/Music")
 set(SOUNDEFFECTS_CHECK_DIR "${ASSET_DIR}/Sound/SoundEffects")
-set(SHADERS_CHECK_DIR "${ASSET_DIR}/Shaders")
-set(TEXTURES_CHECK_DIR "${ASSET_DIR}/Textures")
+set(SHADERS_CHECK_DIR "${ASSET_DIR}/Shaders/Vertices")
+set(TEXTURES_CHECK_DIR "${ASSET_DIR}/Textures/Blocks")
 
-if(NOT EXISTS "${FONTS_CHECK_DIR}/")
-    message(STATUS "Fonts not found! Downloading from ${FONTS_URL}...")
+macro(download_and_extract url zip_name check_dir extract_dest asset_type)
+    if(NOT EXISTS "${check_dir}")
+        message(STATUS "${asset_type} not found! Downloading from ${url}...")
+        file(DOWNLOAD "${url}" "${CMAKE_BINARY_DIR}/${zip_name}" SHOW_PROGRESS STATUS download_status)
+        list(GET download_status 0 status_code)
+        list(GET download_status 1 status_message)
 
-    file(DOWNLOAD "${FONTS_URL}" "${FONTS_ZIP_PATH}"
-            SHOW_PROGRESS
-            STATUS download_status
-    )
-
-    list(GET download_status 0 status_code)
-    list(GET download_status 1 status_message)
-
-    if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting Fonts...")
-        file(ARCHIVE_EXTRACT INPUT "${FONTS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Fonts/")
-        file(REMOVE "${FONTS_ZIP_PATH}")
-    else()
-        message(FATAL_ERROR "Failed to download Fonts: ${status_message}")
+        if(status_code EQUAL 0)
+            message(STATUS "Download complete! Extracting ${asset_type}...")
+            file(ARCHIVE_EXTRACT INPUT "${CMAKE_BINARY_DIR}/${zip_name}" DESTINATION "${extract_dest}")
+            file(REMOVE "${CMAKE_BINARY_DIR}/${zip_name}")
+        else()
+            message(FATAL_ERROR "Failed to download ${asset_type}: ${status_message}")
+        endif()
     endif()
-endif()
+endmacro()
 
-if(NOT EXISTS "${SONGS_CHECK_DIR}/")
-    message(STATUS "Songs not found! Downloading from ${SONGS_URL}...")
-
-    file(DOWNLOAD "${SONGS_URL}" "${SONGS_ZIP_PATH}"
-            SHOW_PROGRESS
-            STATUS download_status
-    )
-
-    list(GET download_status 0 status_code)
-    list(GET download_status 1 status_message)
-
-    if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting songs...")
-        file(ARCHIVE_EXTRACT INPUT "${SONGS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Sounds/Music")
-        file(REMOVE "${SONGS_ZIP_PATH}")
-    else()
-        message(FATAL_ERROR "Failed to download songs: ${status_message}")
-    endif()
-endif()
-
-if(NOT EXISTS "${SOUNDEFFECTS_CHECK_DIR}/")
-    message(STATUS "Sound effects not found! Downloading from ${SOUNDEFFECTS_URL}...")
-
-    file(DOWNLOAD "${SOUNDEFFECTS_URL}" "${SOUNDEFFECTS_ZIP_PATH}"
-            SHOW_PROGRESS
-            STATUS download_status
-    )
-
-    list(GET download_status 0 status_code)
-    list(GET download_status 1 status_message)
-
-    if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting sound effects...")
-        file(ARCHIVE_EXTRACT INPUT "${SOUNDEFFECTS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Sounds/SoundEffects")
-        file(REMOVE "${SOUNDEFFECTS_ZIP_PATH}")
-    else()
-        message(FATAL_ERROR "Failed to download sound effects: ${status_message}")
-    endif()
-endif()
-
-if(NOT EXISTS "${SHADERS_CHECK_DIR}/Vertices")
-    message(STATUS "Shaders not found! Downloading from ${SHADERS_URL}...")
-
-    file(DOWNLOAD "${SHADERS_URL}" "${SHADERS_ZIP_PATH}"
-            SHOW_PROGRESS
-            STATUS download_status
-    )
-
-    list(GET download_status 0 status_code)
-    list(GET download_status 1 status_message)
-
-    if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting shaders...")
-        file(ARCHIVE_EXTRACT INPUT "${SHADERS_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Shaders")
-        file(REMOVE "${SHADERS_ZIP_PATH}")
-    else()
-        message(FATAL_ERROR "Failed to download shaders: ${status_message}")
-    endif()
-endif()
-
-if(NOT EXISTS "${TEXTURES_CHECK_DIR}/Blocks")
-    message(STATUS "Textures not found! Downloading from ${TEXTURES_URL}...")
-
-    file(DOWNLOAD "${TEXTURES_URL}" "${TEXTURES_ZIP_PATH}"
-            SHOW_PROGRESS
-            STATUS download_status
-    )
-
-    list(GET download_status 0 status_code)
-    list(GET download_status 1 status_message)
-
-    if(status_code EQUAL 0)
-        message(STATUS "Download complete! Extracting textures...")
-        file(ARCHIVE_EXTRACT INPUT "${TEXTURES_ZIP_PATH}" DESTINATION "${ASSET_DIR}/Textures")
-        file(REMOVE "${TEXTURES_ZIP_PATH}")
-    else()
-        message(FATAL_ERROR "Failed to download textures: ${status_message}")
-    endif()
-endif()
+download_and_extract("${FONTS_URL}" "temp_fonts.zip" "${FONTS_CHECK_DIR}" "${ASSET_DIR}/Fonts/" "Fonts")
+download_and_extract("${SONGS_URL}" "temp_songs.zip" "${SONGS_CHECK_DIR}" "${ASSET_DIR}/Sound/Music" "Songs")
+download_and_extract("${SOUNDEFFECTS_URL}" "temp_soundeffects.zip" "${SOUNDEFFECTS_CHECK_DIR}" "${ASSET_DIR}/Sound/SoundEffects" "Sound Effects")
+download_and_extract("${SHADERS_URL}" "temp_shaders.zip" "${SHADERS_CHECK_DIR}" "${ASSET_DIR}/Shaders" "Shaders")
+download_and_extract("${TEXTURES_URL}" "temp_textures.zip" "${TEXTURES_CHECK_DIR}" "${ASSET_DIR}/Textures" "Textures")
 
 include(FetchContent)
 
-FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG        3.4 
-        GIT_SHALLOW    ON
-)
+# GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4 GIT_SHALLOW ON)
 FetchContent_MakeAvailable(glfw)
 
-FetchContent_Declare(
-        glad
-        GIT_REPOSITORY https://github.com/FelixHommel/Glad2-CMake.git
-        GIT_TAG        main
-        GIT_SHALLOW    ON
-)
+# GLAD
+FetchContent_Declare(glad GIT_REPOSITORY https://github.com/FelixHommel/Glad2-CMake.git GIT_TAG main GIT_SHALLOW ON)
 FetchContent_MakeAvailable(glad)
+add_library(my_glad STATIC ${glad_SOURCE_DIR}/src/gl.c)
+target_include_directories(my_glad PUBLIC ${glad_SOURCE_DIR}/include)
 
-add_library(my_glad STATIC
-        ${glad_SOURCE_DIR}/src/gl.c
-)
-target_include_directories(my_glad PUBLIC
-        ${glad_SOURCE_DIR}/include
-)
-
-FetchContent_Declare(
-        imgui
-        GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG        v1.90.4 
-        GIT_SHALLOW    ON
-)
+# ImGui
+FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.90.4 GIT_SHALLOW ON)
 FetchContent_MakeAvailable(imgui)
+
+add_library(imgui_lib STATIC
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+)
+target_include_directories(imgui_lib PUBLIC
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
+        ${imgui_SOURCE_DIR}/misc/cpp
+)
+target_link_libraries(imgui_lib PRIVATE glfw my_glad)
+
+# GLM
+FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 0.9.9.8 GIT_SHALLOW ON)
+FetchContent_MakeAvailable(glm)
+
+# STB
+FetchContent_Declare(stb GIT_REPOSITORY https://github.com/nothings/stb.git GIT_TAG master GIT_SHALLOW ON)
+FetchContent_MakeAvailable(stb)
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image INTERFACE ${stb_SOURCE_DIR})
+
+# nlohmann/json
+FetchContent_Declare(json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.11.3 GIT_SHALLOW ON)
+FetchContent_MakeAvailable(json)
+
+# Miniaudio
+FetchContent_Declare(mini_audio GIT_REPOSITORY https://github.com/mackron/miniaudio GIT_TAG master GIT_SHALLOW ON)
+FetchContent_MakeAvailable(mini_audio)
+
+# Perlin Noise
+FetchContent_Declare(perlin_noise URL https://raw.githubusercontent.com/Reputeless/PerlinNoise/bdf39fe92b2a585cdef485bcec2bca8ab5614095/PerlinNoise.hpp DOWNLOAD_NO_EXTRACT TRUE)
+FetchContent_MakeAvailable(perlin_noise)
+add_library(perlin_noise INTERFACE)
+target_include_directories(perlin_noise INTERFACE ${perlin_noise_SOURCE_DIR})
 
 add_compile_definitions(GLFW_INCLUDE_NONE)
 
@@ -197,84 +137,16 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/world/World.cpp
         src/Engine/world/World.h
 )
-
-FetchContent_GetProperties(imgui)
-if(NOT imgui_POPULATED)
-    FetchContent_Populate(imgui)
-endif()
-
-add_library(imgui_lib STATIC
-        ${imgui_SOURCE_DIR}/imgui.cpp
-        ${imgui_SOURCE_DIR}/imgui_demo.cpp
-        ${imgui_SOURCE_DIR}/imgui_draw.cpp
-        ${imgui_SOURCE_DIR}/imgui_tables.cpp
-        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-        ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
-)
-target_include_directories(imgui_lib PUBLIC
+target_include_directories(Minecraft_Recreation_Recreation PRIVATE
+        src
+        ${glfw_SOURCE_DIR}/include
+        ${glad_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
-        ${imgui_SOURCE_DIR}/misc/cpp
+        ${mini_audio_SOURCE_DIR}
 )
 
-FetchContent_Declare(
-        glm
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG        0.9.9.8
-        GIT_SHALLOW    ON
-)
-FetchContent_MakeAvailable(glm)
-
-FetchContent_Declare(
-        stb
-        GIT_REPOSITORY https://github.com/nothings/stb.git
-        GIT_TAG        master
-        GIT_SHALLOW    ON
-)
-
-FetchContent_MakeAvailable(stb)
-
-add_library(stb_image INTERFACE)
-target_include_directories(stb_image INTERFACE ${stb_SOURCE_DIR})
-
-FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG        v3.11.3
-        GIT_SHALLOW    ON
-)
-FetchContent_MakeAvailable(json)
-
-FetchContent_Declare(
-        mini_audio
-        GIT_REPOSITORY https://github.com/mackron/miniaudio
-        GIT_TAG        master
-        GIT_SHALLOW    ON
-)
-FetchContent_MakeAvailable(mini_audio)
-
-FetchContent_Declare(
-        perlin_noise
-        URL https://raw.githubusercontent.com/Reputeless/PerlinNoise/bdf39fe92b2a585cdef485bcec2bca8ab5614095/PerlinNoise.hpp
-        DOWNLOAD_NO_EXTRACT TRUE
-)
-FetchContent_MakeAvailable(perlin_noise)
-add_library(perlin_noise INTERFACE)
-target_include_directories(perlin_noise INTERFACE ${perlin_noise_SOURCE_DIR})
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
-            asound
-            pulse
-            pthread
-            dl
-            m
-    )
-endif()
-
-target_link_libraries(imgui_lib PRIVATE glfw my_glad)
+find_package(Threads REQUIRED)
 
 target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
         glfw
@@ -284,13 +156,14 @@ target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
         nlohmann_json::nlohmann_json
         stb_image
         perlin_noise
+        Threads::Threads
 )
 
-target_include_directories(Minecraft_Recreation_Recreation PRIVATE
-        src
-        ${glfw_SOURCE_DIR}/include
-        ${glad_SOURCE_DIR}/include
-        ${imgui_SOURCE_DIR}
-        ${imgui_SOURCE_DIR}/backends
-        ${mini_audio_SOURCE_DIR}
-)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
+            asound
+            pulse
+            dl
+            m
+    )
+endif()
