@@ -23,6 +23,7 @@ class World {
     util::ConcurrentQueue<std::unique_ptr<rendering::ChunkRendering>> m_CompletedGenQueue;
     std::unordered_set<uint64_t> m_PendingMeshKeys;
     std::unordered_set<uint64_t> m_GeneratingChunkKeys;
+    util::ThreadPool m_ThreadPool;
     mutable std::shared_mutex m_ChunksMutex;
     std::unordered_map<uint64_t, std::unique_ptr<rendering::ChunkRendering>> m_Chunks;
     worldgen::WorldGen m_WorldGen;
@@ -64,6 +65,9 @@ public:
 
     [[nodiscard]] const block::BlockType& getBlockAt(int worldX, int worldY, int worldZ) const;
     [[nodiscard]] uint8_t getBlockIDAt(int worldX, int worldY, int worldZ) const;
+
+    bool isChunkPendingMesh(const int chunkX, const int chunkZ) const { const uint64_t key = getChunkKey(chunkX, chunkZ);
+        return m_PendingMeshKeys.contains(key); }
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
 

@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "Engine/config/SettingsManager.h"
+#include "Engine/ui/UIManager.h"
 
 namespace engine::world {
 
@@ -149,7 +150,7 @@ const block::BlockType& World::getBlockAt(const int worldX, const int worldY, co
     return it->second->getBlockAt(localX, worldY, localZ);
 }
 
-void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
+    void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
     if (worldY < 0 || worldY >= 256) return;
 
     const int chunkX{toChunkCoord(worldX)};
@@ -157,32 +158,24 @@ void World::setBlockAt(const int worldX, const int worldY, const int worldZ, con
     const int localX{toLocalCoord(worldX)};
     const int localZ{toLocalCoord(worldZ)};
 
-    if (rendering::ChunkRendering* chunk = getChunk(chunkX, chunkZ)) {
-        chunk->setBlock(localX, worldY, localZ, blockID);
+    rendering::ChunkRendering* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) return;
 
-        const auto meshData = chunk->buildMeshDataCPU(*this);
-        chunk->uploadGPU(meshData.vertices);
+    chunk->setBlock(localX, worldY, localZ, blockID);
 
-        if (localX == 0) {
-            if (auto* neighbor = getChunk(chunkX - 1, chunkZ)) {
-                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
-            }
-        } else if (localX == 15) {
-            if (auto* neighbor = getChunk(chunkX + 1, chunkZ)) {
-                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
-            }
+    auto instantRemesh = [this](const int cx, const int cz) {
+        if (auto* targetChunk = getChunk(cx, cz)) {
+            const auto meshData = targetChunk->buildMeshDataCPU(*this);
+            targetChunk->uploadGPU(meshData.vertices);
         }
+    };
 
-        if (localZ == 0) {
-            if (auto* neighbor = getChunk(chunkX, chunkZ - 1)) {
-                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
-            }
-        } else if (localZ == 15) {
-            if (auto* neighbor = getChunk(chunkX, chunkZ + 1)) {
-                neighbor->uploadGPU(neighbor->buildMeshDataCPU(*this).vertices);
-            }
-        }
-    }
+    instantRemesh(chunkX, chunkZ);
+
+    if (localX == 0)  instantRemesh(chunkX - 1, chunkZ);
+    if (localX == 15) instantRemesh(chunkX + 1, chunkZ);
+    if (localZ == 0)  instantRemesh(chunkX, chunkZ - 1);
+    if (localZ == 15) instantRemesh(chunkX, chunkZ + 1);
 }
 
 void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
@@ -261,6 +254,10 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
 
 void World::render(const shaders::Shader& shader) {
     shader.use();
+
+    if (ui::UIManager::isOverlayActive(ui::OverlayFlags::DebugScreen)) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
 
     for (const auto& chunk : m_Chunks | std::views::values) {
 

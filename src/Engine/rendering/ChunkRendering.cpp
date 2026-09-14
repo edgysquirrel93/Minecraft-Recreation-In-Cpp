@@ -70,6 +70,10 @@ void ChunkRendering::uploadGPU(const std::vector<Vertex>& vertices) {
     if (vertices.empty()) {
         m_VertexCount = 0;
         m_IsDirty = false;
+        if (m_ChunkVBO != 0) {
+            glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
+            glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+        }
         return;
     }
 

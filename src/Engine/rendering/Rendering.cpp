@@ -54,7 +54,8 @@ void Rendering::renderTransparentBlock(ShaderManager& shaderManager) {
 void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* window) {
     int width, height;
 
-    glClearColor(0.4705882352941176f, 0.6549019607843137f, 1.0f, 1.0f);
+    constexpr glm::vec3 skyColor{0.4705882352941176f, 0.6549019607843137f, 1.0f};
+    glClearColor(skyColor.r, skyColor.g, skyColor.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glEnable(GL_DEPTH_TEST);
@@ -78,6 +79,14 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
         const glm::vec3 cameraView  = input::Camera::getCameraFront();
 
         m_World.update(cameraPos, m_ThreadPool);
+
+        const float renderDistanceBlocks {static_cast<float>(config::SettingsManager::get().getRenderDistance() * 16)};
+
+        mainShader->setVec3("u_CameraPos", cameraPos);
+        mainShader->setVec3("u_FogColor", skyColor);
+
+        mainShader->setFloat("u_FogStart", renderDistanceBlocks * 0.6f);
+        mainShader->setFloat("u_FogEnd", renderDistanceBlocks);
 
         const glm::mat4 projection {glm::perspective(
                 glm::radians(input::Player::getTargetFov()),
