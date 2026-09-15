@@ -12,6 +12,14 @@ ChunkRendering::~ChunkRendering() {
     }
 }
 
+void ChunkRendering::updateVisibility(const float deltaTime) {
+    for (auto& [vao, vbo, vertexCount, visibility] : m_SubChunks) {
+        if (visibility < 1.0f) {
+            visibility = std::min(1.0f, visibility + deltaTime * 5.0f);
+        }
+    }
+}
+
 const block::BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
     if (x < 0 || x >= 16 || y < 0 || y >= 256 || z < 0 || z >= 16) {
         return blockregistry::get(blockregistry::ID_AIR);
@@ -41,37 +49,51 @@ BoundingBox ChunkRendering::getSubChunkBoundingBox(const int subY) const noexcep
     };
 }
 
-ChunkRendering::ChunkMeshData ChunkRendering::buildSectionMeshDataCPU(const world::World& world, const int subY) const {
+ChunkRendering::ChunkMeshData ChunkRendering::buildSectionMeshDataCPU(const world::NeighborChunks& neighbors, const int subY) const {
     ChunkMeshData data{ .chunkX = m_ChunkX, .chunkZ = m_ChunkZ, .subY = subY };
-
-    const int worldXOffset = m_ChunkX * 16;
-    const int worldZOffset = m_ChunkZ * 16;
 
     const int minY = subY * 16;
     const int maxY = minY + 16;
 
-    for (int x = 0; x < 16; x++) {
-        for (int y = minY; y < maxY; y++) {
-            for (int z = 0; z < 16; z++) {
+    auto getNeighborBlock = [&](const int nx, const int ny, const int nz) -> const block::BlockType& {
+        if (ny < 0 || ny >= 256) {
+            return blockregistry::get(blockregistry::ID_AIR);
+        }
+
+        if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
+            return getBlockAt(nx, ny, nz);
+        }
+
+        const ChunkRendering* target = nullptr;
+        int lx = nx;
+        int lz = nz;
+
+        if (nx < 0)        { target = neighbors.west;  lx = nx + 16; }
+        else if (nx >= 16) { target = neighbors.east;  lx = nx - 16; }
+        else if (nz < 0)   { target = neighbors.south; lz = nz + 16; }
+        else if (nz >= 16) { target = neighbors.north; lz = nz - 16; }
+
+        if (target) {
+            return target->getBlockAt(lx, ny, lz);
+        }
+        return blockregistry::get(blockregistry::ID_AIR);
+    };
+
+    for (int x = 0; x < 16; ++x) {
+        for (int y = minY; y < maxY; ++y) {
+            for (int z = 0; z < 16; ++z) {
                 const block::BlockType& block = getBlockAt(x, y, z);
                 if (block == blockregistry::get(blockregistry::ID_AIR)) continue;
 
                 const int localY = y - minY;
 
                 for (int face = 0; face < 6; ++face) {
-                    const glm::ivec3 dir {NEIGHBORS[face]};
+                    const glm::ivec3 dir{NEIGHBORS[face]};
                     const int nx = x + dir.x;
                     const int ny = y + dir.y;
                     const int nz = z + dir.z;
 
-                    block::BlockType neighborBlock;
-                    if (nx >= 0 && nx < 16 && ny >= 0 && ny < 256 && nz >= 0 && nz < 16) {
-                        neighborBlock = getBlockAt(nx, ny, nz);
-                    } else {
-                        neighborBlock = world.getBlockAt(worldXOffset + nx, ny, worldZOffset + nz);
-                    }
-
-                    if (!neighborBlock.isOpaque && neighborBlock != block) {
+                    if (const block::BlockType& neighborBlock = getNeighborBlock(nx, ny, nz); !neighborBlock.isOpaque && neighborBlock != block) {
                         addFaceVertices(data.vertices, x, localY, z, face, block);
                     }
                 }
@@ -84,7 +106,13 @@ ChunkRendering::ChunkMeshData ChunkRendering::buildSectionMeshDataCPU(const worl
 void ChunkRendering::uploadSectionGPU(const int subY, const std::vector<PackedVertex>& vertices) {
     if (subY < 0 || subY >= 16) return;
 
-    auto& [vao, vbo, vertexCount] = m_SubChunks[subY];
+    auto& [vao, vbo, vertexCount, visibility] = m_SubChunks[subY];
+
+    if (vao == 0) {
+        visibility = 0.0f;
+    } else {
+        visibility = 1.0f;
+    }
 
     if (vertices.empty()) {
         vertexCount = 0;
@@ -111,7 +139,6 @@ void ChunkRendering::uploadSectionGPU(const int subY, const std::vector<PackedVe
 
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(PackedVertex)), vertices.data(), GL_DYNAMIC_DRAW);
     vertexCount = static_cast<GLsizei>(vertices.size());
-    m_IsDirty = false;
 }
 void ChunkRendering::addFaceVertices(std::vector<PackedVertex>& vertices, const int lx, const int ly, const int lz,
         const int face, const block::BlockType& block) {
@@ -135,7 +162,12 @@ void ChunkRendering::addFaceVertices(std::vector<PackedVertex>& vertices, const 
 
     static constexpr int QUAD_INDICES[6] = { 0, 1, 2, 2, 3, 0 };
 
-    for (const int cornerIdx : QUAD_INDICES) {
+    static constexpr int UV_INDICES[6] = { 0, 1, 2, 2, 3, 0 };
+
+    for (int i = 0; i < 6; ++i) {
+        const int cornerIdx = QUAD_INDICES[i];
+        const int uvIdx = UV_INDICES[i];
+
         const glm::ivec3 cornerOffset = FACE_VERTS[face][cornerIdx];
 
         const auto vx = static_cast<uint32_t>(lx + cornerOffset.x);
@@ -145,7 +177,7 @@ void ChunkRendering::addFaceVertices(std::vector<PackedVertex>& vertices, const 
         const uint32_t packed = packVertex(
             vx, vy, vz,
             static_cast<uint32_t>(face),
-            static_cast<uint32_t>(cornerIdx),
+            static_cast<uint32_t>(uvIdx),
             texLayer
         );
 

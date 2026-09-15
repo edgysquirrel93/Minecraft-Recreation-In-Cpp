@@ -7,6 +7,7 @@
 #include "Frustum.h"
 
 namespace engine::world {
+    struct NeighborChunks;
     class World;
 }
 
@@ -59,6 +60,7 @@ public:
         GLuint vao{0};
         GLuint vbo{0};
         GLsizei vertexCount{0};
+        float visibility {0.0f};
     };
 
     ChunkRendering(const int chunkX, const int chunkZ) : m_ChunkX(chunkX), m_ChunkZ(chunkZ) {}
@@ -66,10 +68,11 @@ public:
 
     [[nodiscard]] BoundingBox getSubChunkBoundingBox(int subY) const noexcept;
 
-    [[nodiscard]] ChunkMeshData buildSectionMeshDataCPU(const world::World& world, int subY) const;
+    [[nodiscard]] ChunkMeshData buildSectionMeshDataCPU(const world::NeighborChunks& neighbors, int subY) const;
     void uploadSectionGPU(int subY, const std::vector<PackedVertex>& vertices);
     static void addFaceVertices(std::vector<PackedVertex>& vertices, int lx, int ly, int lz,
         int face, const block::BlockType& block);
+    void updateVisibility(float deltaTime);
 
     // getters/setters
     [[nodiscard]] const std::array<SubChunk, 16>& getSubChunks() const noexcept { return m_SubChunks; }

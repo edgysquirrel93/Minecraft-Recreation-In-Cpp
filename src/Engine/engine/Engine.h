@@ -4,7 +4,6 @@
 #include "Engine/window/WindowManager.h"
 #include "Engine/sound/Sound.h"
 #include "Engine/rendering/Rendering.h"
-#include "Engine/util/ThreadPool.h"
 using namespace engine;
 
 namespace engine {
@@ -17,7 +16,6 @@ class Engine {
     world::World m_World{};
     std::unique_ptr<rendering::ShaderManager> m_ShaderManager;
     std::chrono::steady_clock::time_point m_LastFrameTime;
-    util::ThreadPool m_ThreadPool;
 
     void initSystems();
     void gameLoop();

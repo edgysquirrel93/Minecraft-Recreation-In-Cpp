@@ -9,7 +9,19 @@
 namespace engine::world {
 
 World::World()
-    : m_WorldGen(config::LevelData::get().getSeed()) {}
+    : m_ThreadPool(std::max(1u, std::thread::hardware_concurrency() - 1)),
+      m_WorldGen(config::LevelData::get().getSeed()) {}
+
+NeighborChunks World::getNeighborSnapshot(const int cx, const int cz) const {
+    std::shared_lock lock(m_ChunksMutex);
+    return NeighborChunks{
+        .center = getChunk(cx, cz),
+        .north  = getChunk(cx, cz + 1),
+        .south  = getChunk(cx, cz - 1),
+        .east   = getChunk(cx + 1, cz),
+        .west   = getChunk(cx - 1, cz)
+    };
+}
 
 void World::saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk)
 {
@@ -91,33 +103,46 @@ void World::saveAllChunks() {
 
 const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) const {
     std::shared_lock lock(m_ChunksMutex);
-    const uint64_t key = getChunkKey(chunkX, chunkZ);
-    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
-        return it->second.get();
-    }
-    return nullptr;
+    return getChunkUnlocked(chunkX, chunkZ);
 }
 
 rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) {
     std::shared_lock lock(m_ChunksMutex);
+    return getChunkUnlocked(chunkX, chunkZ);
+}
+
+const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) const {
+    std::shared_lock lock(m_ChunksMutex);
+    return getChunkUnlocked(chunkX, chunkY, chunkZ);
+}
+
+rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) {
+    std::shared_lock lock(m_ChunksMutex);
+    return getChunkUnlocked(chunkX, chunkY, chunkZ);
+}
+
+const rendering::ChunkRendering* World::getChunkUnlocked(const int chunkX, const int chunkZ) const {
     const uint64_t key = getChunkKey(chunkX, chunkZ);
     if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
         return it->second.get();
     }
     return nullptr;
 }
-
-const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) const {
-    std::shared_lock lock(m_ChunksMutex);
+rendering::ChunkRendering* World::getChunkUnlocked(const int chunkX, const int chunkZ) {
+    const uint64_t key = getChunkKey(chunkX, chunkZ);
+    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+const rendering::ChunkRendering* World::getChunkUnlocked(const int chunkX, const int chunkY, const int chunkZ) const {
     const uint64_t key = getChunkKey(chunkX, chunkY, chunkZ);
     if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
         return it->second.get();
     }
     return nullptr;
 }
-
-rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) {
-    std::shared_lock lock(m_ChunksMutex);
+rendering::ChunkRendering* World::getChunkUnlocked(const int chunkX, const int chunkY, const int chunkZ) {
     const uint64_t key = getChunkKey(chunkX, chunkY, chunkZ);
     if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
         return it->second.get();
@@ -187,7 +212,8 @@ void World::setBlockAt(const int worldX, const int worldY, const int worldZ, con
     auto remeshSubChunk = [this](const int chunkX, const int chunkZ, const int sY) {
         if (sY < 0 || sY >= 16) return;
         if (auto* targetChunk = getChunk(chunkX, chunkZ)) {
-            const auto mesh = targetChunk->buildSectionMeshDataCPU(*this, sY);
+            const NeighborChunks snapshot = getNeighborSnapshot(chunkX, chunkZ);
+            const auto mesh = targetChunk->buildSectionMeshDataCPU(snapshot, sY);
             targetChunk->uploadSectionGPU(sY, mesh.vertices);
         }
     };
@@ -204,9 +230,15 @@ void World::setBlockAt(const int worldX, const int worldY, const int worldZ, con
     if (lz == 15) remeshSubChunk(cx, cz + 1, subY);
 }
 
-void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
-    std::unique_ptr<rendering::ChunkRendering> generatedChunk;
+void World::update(const glm::vec3& playerPos) {
 
+    const auto currentTime = std::chrono::high_resolution_clock::now();
+    float deltaTime = std::chrono::duration<float>(currentTime - m_lastFrameTime).count();
+    m_lastFrameTime = currentTime;
+
+    deltaTime = std::min(deltaTime, 0.1f);
+
+    std::unique_ptr<rendering::ChunkRendering> generatedChunk;
     while (m_CompletedGenQueue.tryPop(generatedChunk)) {
         const int cx = generatedChunk->getChunkX();
         const int cz = generatedChunk->getChunkZ();
@@ -232,91 +264,116 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
             it->second->uploadSectionGPU(meshData.subY, meshData.vertices);
         }
 
-        const uint64_t subKey = key ^ (static_cast<uint64_t>(meshData.subY) << 56);
+        const uint64_t subKey = getChunkKey(meshData.chunkX, meshData.subY, meshData.chunkZ);
         m_PendingMeshKeys.erase(subKey);
     }
 
     const int playerChunkX = toChunkCoord(static_cast<int>(std::floor(playerPos.x)));
     const int playerChunkZ = toChunkCoord(static_cast<int>(std::floor(playerPos.z)));
-    const int renderDistance {config::SettingsManager::get().getRenderDistance()};
+    const int renderDistance = config::SettingsManager::get().getRenderDistance();
 
-    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+    const int genDistance = renderDistance + 2;
+
+    struct ChunkRequest { int cx, cz; float distSq; };
+    std::vector<ChunkRequest> requests;
+
+    for (int dx = -genDistance; dx <= genDistance; ++dx) {
+        for (int dz = -genDistance; dz <= genDistance; ++dz) {
             const int cx = playerChunkX + dx;
             const int cz = playerChunkZ + dz;
             const uint64_t key = getChunkKey(cx, cz);
 
             {
                 std::shared_lock lock(m_ChunksMutex);
-                if (m_Chunks.contains(key) || m_GeneratingChunkKeys.contains(key)) {
-                    continue;
-                }
+                if (m_Chunks.contains(key) || m_GeneratingChunkKeys.contains(key)) continue;
             }
 
-            m_GeneratingChunkKeys.insert(key);
-
-            threadPool.enqueue([this, cx, cz]() {
-                auto chunk = std::make_unique<rendering::ChunkRendering>(cx, cz);
-
-                if (!loadChunk(cx, cz, chunk.get())) {
-                    m_WorldGen.generateChunkData(*chunk);
-                }
-
-                m_CompletedGenQueue.push(std::move(chunk));
-            });
+            const auto distSq = static_cast<float>(dx * dx + dz * dz);
+            requests.push_back({.cx = cx, .cz = cz, .distSq = distSq});
         }
     }
 
-    std::shared_lock lock(m_ChunksMutex);
-    for (auto& [key, chunk] : m_Chunks) {
-        if (chunk->isDirty()) {
-            chunk->clearDirty();
+    std::ranges::sort(requests, [](const ChunkRequest& a, const ChunkRequest& b) {
+        return a.distSq < b.distSq;
+    });
 
+    for (const auto& req : requests) {
+        const uint64_t key = getChunkKey(req.cx, req.cz);
+        m_GeneratingChunkKeys.insert(key);
+        m_ThreadPool.enqueue([this, cx = req.cx, cz = req.cz]() {
+            auto chunk = std::make_unique<rendering::ChunkRendering>(cx, cz);
+            if (!loadChunk(cx, cz, chunk.get())) {
+                m_WorldGen.generateChunkData(*chunk);
+            }
+            m_CompletedGenQueue.push(std::move(chunk));
+        });
+    }
+
+    std::shared_lock lock(m_ChunksMutex);
+    for (auto& chunk : m_Chunks | std::views::values) {
+        chunk->updateVisibility(deltaTime);
+        if (chunk->isDirty()) {
             const int cX = chunk->getChunkX();
             const int cZ = chunk->getChunkZ();
 
+            NeighborChunks snapshot{
+                .center = chunk.get(),
+                .north  = getChunkUnlocked(cX, cZ + 1),
+                .south  = getChunkUnlocked(cX, cZ - 1),
+                .east   = getChunkUnlocked(cX + 1, cZ),
+                .west   = getChunkUnlocked(cX - 1, cZ)
+            };
+
+            if (!snapshot.north || !snapshot.south || !snapshot.east || !snapshot.west) {
+                continue;
+            }
+
+            bool allQueued = true;
+
             for (int subY = 0; subY < 16; ++subY) {
-                const uint64_t subKey = key ^ (static_cast<uint64_t>(subY) << 56);
+                const uint64_t subKey = getChunkKey(cX, subY, cZ);
 
                 if (m_PendingMeshKeys.contains(subKey)) {
+                    allQueued = false;
                     continue;
                 }
 
                 m_PendingMeshKeys.insert(subKey);
 
-                threadPool.enqueue([this, cX, cZ, subY]() {
-                    if (const auto* targetChunk = getChunk(cX, cZ)) {
-                        auto result = targetChunk->buildSectionMeshDataCPU(*this, subY);
+                m_ThreadPool.enqueue([this, snapshot, subY]() {
+                    if (snapshot.center) {
+                        auto result = snapshot.center->buildSectionMeshDataCPU(snapshot, subY);
                         m_CompletedMeshQueue.push(std::move(result));
                     }
                 });
+            }
+
+            if (allQueued) {
+                chunk->clearDirty();
             }
         }
     }
 }
 
 void World::render(const shaders::Shader& shader, const glm::mat4& viewProjection) {
-    shader.use();
     rendering::Frustum frustum;
     frustum.update(viewProjection);
 
     std::shared_lock lock(m_ChunksMutex);
     for (const auto& chunk : m_Chunks | std::views::values) {
-        const auto& subChunks = chunk->getSubChunks();
+        const int cx = chunk->getChunkX();
+        const int cz = chunk->getChunkZ();
 
         for (int subY = 0; subY < 16; ++subY) {
-            const auto& sub = subChunks[subY];
-            if (sub.vertexCount == 0) continue;
+            const auto& sub = chunk->getSubChunks()[subY];
+            if (sub.vertexCount == 0 || sub.vao == 0) continue;
 
             if (const rendering::BoundingBox box = chunk->getSubChunkBoundingBox(subY); !frustum.isBoxVisible(box)) continue;
 
-            const glm::vec3 chunkOrigin(
-                static_cast<float>(chunk->getChunkX() * 16),
-                static_cast<float>(subY * 16),
-                static_cast<float>(chunk->getChunkZ() * 16)
-            );
-
-            shader.setVec3("u_ChunkOrigin", chunkOrigin);
+            const glm::vec3 subChunkOrigin(static_cast<float>(cx) * 16.0f, static_cast<float>(subY) * 16.0f,
+                static_cast<float>(cz) * 16.0f);
+            shader.setVec3("u_ChunkOrigin", subChunkOrigin);
+            shader.setFloat("u_ChunkVisibility", sub.visibility);
 
             glBindVertexArray(sub.vao);
             glDrawArrays(GL_TRIANGLES, 0, sub.vertexCount);

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <shared_mutex>
+#include <chrono>
 
 #include "Engine/block/Block.h"
 #include "Engine/rendering/ChunkRendering.h"
@@ -19,6 +20,15 @@ namespace engine::rendering
 }
 
 namespace engine::world {
+
+struct NeighborChunks {
+    const rendering::ChunkRendering* center{nullptr};
+    const rendering::ChunkRendering* north{nullptr}; // +Z
+    const rendering::ChunkRendering* south{nullptr}; // -Z
+    const rendering::ChunkRendering* east{nullptr};  // +X
+    const rendering::ChunkRendering* west{nullptr};  // -X
+};
+
 class World {
     util::ConcurrentQueue<rendering::ChunkRendering::ChunkMeshData> m_CompletedMeshQueue;
     util::ConcurrentQueue<std::unique_ptr<rendering::ChunkRendering>> m_CompletedGenQueue;
@@ -28,6 +38,7 @@ class World {
     mutable std::shared_mutex m_ChunksMutex;
     std::unordered_map<uint64_t, std::unique_ptr<rendering::ChunkRendering>> m_Chunks;
     worldgen::WorldGen m_WorldGen;
+    std::chrono::high_resolution_clock::time_point m_lastFrameTime{ std::chrono::high_resolution_clock::now() };
     static constexpr uint32_t CHUNK_FILE_MAGIC {0x564F584C};
     static constexpr uint16_t CHUNK_FILE_VERSION {1};
 
@@ -36,6 +47,12 @@ class World {
         uint16_t version{CHUNK_FILE_VERSION};
         uint32_t dataSize{0};
     };
+
+    [[nodiscard]] const rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkZ) const;
+    [[nodiscard]] rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkZ);
+    [[nodiscard]] const rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkY, int chunkZ) const;
+    [[nodiscard]] rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkY, int chunkZ);
+
 public:
 
     World();
@@ -44,16 +61,15 @@ public:
     World(const World&) = delete;
     World& operator=(const World&) = delete;
 
-    static uint64_t getChunkKey(const int chunkX, const int chunkZ) {
-        return (static_cast<uint64_t>(static_cast<uint32_t>(chunkX)) << 32) |
-            static_cast<uint32_t>(chunkZ);
+    static uint64_t getChunkKey(const int x, const int z) noexcept {
+        return (static_cast<uint64_t>(static_cast<uint32_t>(x)) << 32) |
+                static_cast<uint64_t>(static_cast<uint32_t>(z));
     }
 
-    static uint64_t getChunkKey(const int chunkX, const int chunkY, const int chunkZ) {
-        const auto x = static_cast<uint64_t>(chunkX & 0x3FFFFF);
-        const auto z = static_cast<uint64_t>(chunkZ & 0x3FFFFF);
-        const auto y = static_cast<uint64_t>(chunkY & 0xFFFFF);
-        return (x << 42) | (z << 20) | y;
+    static uint64_t getChunkKey(const int x, const int y, const int z) noexcept {
+        return (static_cast<uint64_t>(static_cast<uint32_t>(x)) << 40) |
+               (static_cast<uint64_t>(static_cast<uint32_t>(y) & 0xFF) << 32) |
+                static_cast<uint64_t>(static_cast<uint32_t>(z));
     }
 
     static int toChunkCoord(const int worldCoord) {
@@ -80,8 +96,9 @@ public:
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
 
-    void update(const glm::vec3& playerPos, util::ThreadPool& threadPool);
+    NeighborChunks getNeighborSnapshot(int cx, int cz) const;
 
+    void update(const glm::vec3& playerPos);
     void render(const shaders::Shader& shader, const glm::mat4& viewProjection);
 
     static void saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk);

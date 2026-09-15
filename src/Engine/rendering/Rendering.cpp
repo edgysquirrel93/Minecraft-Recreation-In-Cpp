@@ -77,25 +77,26 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
         const glm::vec3 cameraPos   = config::LevelData::get().getCameraPos();
         const glm::vec3 cameraView  = input::Camera::getCameraFront();
 
-        m_World.update(cameraPos, m_ThreadPool);
+        m_World.update(cameraPos);
 
-        const float renderDistanceBlocks {static_cast<float>(config::SettingsManager::get().getRenderDistance() * 16)};
+        const auto renderDistanceChunks = static_cast<float>(config::SettingsManager::get().getRenderDistance());
+        const float maxRenderRadius = (renderDistanceChunks - 0.5f) * 16.0f;
 
         mainShader->setVec3("u_CameraPos", cameraPos);
         mainShader->setVec3("u_FogColor", skyColor);
 
-        mainShader->setFloat("u_FogStart", renderDistanceBlocks * 0.6f);
-        mainShader->setFloat("u_FogEnd", renderDistanceBlocks);
+        mainShader->setFloat("u_FogEnd", maxRenderRadius);
+        mainShader->setFloat("u_FogStart", maxRenderRadius * 0.75f);
+
+        constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+        m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
 
         const glm::mat4 projection {glm::perspective(
                 glm::radians(input::Player::getTargetFov()),
                 static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1),
                 0.1f, 1000.0f)};
-        mainShader->setMat4("projection", projection);
-
-        constexpr auto upVector = glm::vec3(0.0f, 1.0f, 0.0f);
-        m_View = glm::lookAt(cameraPos, cameraPos + cameraView, upVector);
-        mainShader->setMat4("view", m_View);
+        const glm::mat4 viewProjection = projection * m_View;
+        mainShader->setMat4("u_ViewProjection", viewProjection);
 
         mainShader->setMat4("model", glm::mat4(1.0f));
 
