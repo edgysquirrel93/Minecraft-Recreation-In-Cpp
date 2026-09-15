@@ -14,6 +14,7 @@
 
 namespace engine::rendering
 {
+    class ShaderManager;
     class ChunkRendering;
 }
 
@@ -48,6 +49,13 @@ public:
             static_cast<uint32_t>(chunkZ);
     }
 
+    static uint64_t getChunkKey(const int chunkX, const int chunkY, const int chunkZ) {
+        const auto x = static_cast<uint64_t>(chunkX & 0x3FFFFF);
+        const auto z = static_cast<uint64_t>(chunkZ & 0x3FFFFF);
+        const auto y = static_cast<uint64_t>(chunkY & 0xFFFFF);
+        return (x << 42) | (z << 20) | y;
+    }
+
     static int toChunkCoord(const int worldCoord) {
         return static_cast<int>(std::floor(static_cast<float>(worldCoord) / 16.0f));
     }
@@ -58,8 +66,9 @@ public:
     }
 
     [[nodiscard]] const rendering::ChunkRendering* getChunk(int chunkX, int chunkZ) const;
-
     [[nodiscard]] rendering::ChunkRendering* getChunk(int chunkX, int chunkZ);
+    [[nodiscard]] const rendering::ChunkRendering* getChunk(int chunkX, int chunkY, int chunkZ) const;
+    [[nodiscard]] rendering::ChunkRendering* getChunk(int chunkX, int chunkY, int chunkZ);
 
     void markNeighborsDirty(int chunkX, int chunkZ);
 
@@ -73,7 +82,7 @@ public:
 
     void update(const glm::vec3& playerPos, util::ThreadPool& threadPool);
 
-    void render(const shaders::Shader& shader);
+    void render(const shaders::Shader& shader, const glm::mat4& viewProjection);
 
     static void saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk);
     static bool loadChunk(int cx, int cz, rendering::ChunkRendering* chunk);

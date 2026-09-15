@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "Engine/config/SettingsManager.h"
+#include "Engine/rendering/Rendering.h"
 #include "Engine/ui/UIManager.h"
 
 namespace engine::world {
@@ -106,6 +107,24 @@ rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) {
     return nullptr;
 }
 
+const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) const {
+    std::shared_lock lock(m_ChunksMutex);
+    const uint64_t key = getChunkKey(chunkX, chunkY, chunkZ);
+    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkY, const int chunkZ) {
+    std::shared_lock lock(m_ChunksMutex);
+    const uint64_t key = getChunkKey(chunkX, chunkY, chunkZ);
+    if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
 void World::markNeighborsDirty(const int chunkX, const int chunkZ) {
     if (auto* north = getChunk(chunkX, chunkZ + 1)) north->makeDirty();
     if (auto* south = getChunk(chunkX, chunkZ - 1)) south->makeDirty();
@@ -150,32 +169,39 @@ const block::BlockType& World::getBlockAt(const int worldX, const int worldY, co
     return it->second->getBlockAt(localX, worldY, localZ);
 }
 
-    void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
+void World::setBlockAt(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
     if (worldY < 0 || worldY >= 256) return;
 
-    const int chunkX{toChunkCoord(worldX)};
-    const int chunkZ{toChunkCoord(worldZ)};
-    const int localX{toLocalCoord(worldX)};
-    const int localZ{toLocalCoord(worldZ)};
+    const int cx = toChunkCoord(worldX);
+    const int cz = toChunkCoord(worldZ);
+    const int lx = toLocalCoord(worldX);
+    const int ly = worldY;
+    const int lz = toLocalCoord(worldZ);
+    const int subY = ly / 16;
 
-    rendering::ChunkRendering* chunk = getChunk(chunkX, chunkZ);
+    rendering::ChunkRendering* chunk = getChunk(cx, cz);
     if (!chunk) return;
 
-    chunk->setBlock(localX, worldY, localZ, blockID);
+    chunk->setBlock(lx, ly, lz, blockID);
 
-    auto instantRemesh = [this](const int cx, const int cz) {
-        if (auto* targetChunk = getChunk(cx, cz)) {
-            const auto meshData = targetChunk->buildMeshDataCPU(*this);
-            targetChunk->uploadGPU(meshData.vertices);
+    auto remeshSubChunk = [this](const int chunkX, const int chunkZ, const int sY) {
+        if (sY < 0 || sY >= 16) return;
+        if (auto* targetChunk = getChunk(chunkX, chunkZ)) {
+            const auto mesh = targetChunk->buildSectionMeshDataCPU(*this, sY);
+            targetChunk->uploadSectionGPU(sY, mesh.vertices);
         }
     };
 
-    instantRemesh(chunkX, chunkZ);
+    remeshSubChunk(cx, cz, subY);
 
-    if (localX == 0)  instantRemesh(chunkX - 1, chunkZ);
-    if (localX == 15) instantRemesh(chunkX + 1, chunkZ);
-    if (localZ == 0)  instantRemesh(chunkX, chunkZ - 1);
-    if (localZ == 15) instantRemesh(chunkX, chunkZ + 1);
+    const int localY = ly % 16;
+    if (localY == 0)  remeshSubChunk(cx, cz, subY - 1);
+    if (localY == 15) remeshSubChunk(cx, cz, subY + 1);
+
+    if (lx == 0)  remeshSubChunk(cx - 1, cz, subY);
+    if (lx == 15) remeshSubChunk(cx + 1, cz, subY);
+    if (lz == 0)  remeshSubChunk(cx, cz - 1, subY);
+    if (lz == 15) remeshSubChunk(cx, cz + 1, subY);
 }
 
 void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
@@ -194,7 +220,6 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
         }
 
         m_GeneratingChunkKeys.erase(key);
-
         markNeighborsDirty(cx, cz);
     }
 
@@ -202,10 +227,13 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
     while (m_CompletedMeshQueue.tryPop(meshData)) {
         const uint64_t key = getChunkKey(meshData.chunkX, meshData.chunkZ);
 
+        std::shared_lock lock(m_ChunksMutex);
         if (auto it = m_Chunks.find(key); it != m_Chunks.end()) {
-            it->second->uploadGPU(meshData.vertices);
+            it->second->uploadSectionGPU(meshData.subY, meshData.vertices);
         }
-        m_PendingMeshKeys.erase(key);
+
+        const uint64_t subKey = key ^ (static_cast<uint64_t>(meshData.subY) << 56);
+        m_PendingMeshKeys.erase(subKey);
     }
 
     const int playerChunkX = toChunkCoord(static_cast<int>(std::floor(playerPos.x)));
@@ -218,8 +246,11 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
             const int cz = playerChunkZ + dz;
             const uint64_t key = getChunkKey(cx, cz);
 
-            if (m_Chunks.contains(key) || m_GeneratingChunkKeys.contains(key)) {
-                continue;
+            {
+                std::shared_lock lock(m_ChunksMutex);
+                if (m_Chunks.contains(key) || m_GeneratingChunkKeys.contains(key)) {
+                    continue;
+                }
             }
 
             m_GeneratingChunkKeys.insert(key);
@@ -236,37 +267,61 @@ void World::update(const glm::vec3& playerPos, util::ThreadPool& threadPool) {
         }
     }
 
+    std::shared_lock lock(m_ChunksMutex);
     for (auto& [key, chunk] : m_Chunks) {
-        if (chunk->isDirty() && !m_PendingMeshKeys.contains(key)) {
-            m_PendingMeshKeys.insert(key);
+        if (chunk->isDirty()) {
             chunk->clearDirty();
 
-            threadPool.enqueue([this, cX = chunk->getChunkX(), cZ = chunk->getChunkZ()]
-            {
-                if (const auto* targetChunk = getChunk(cX, cZ)) {
-                    auto result = targetChunk->buildMeshDataCPU(*this);
-                    m_CompletedMeshQueue.push(std::move(result));
+            const int cX = chunk->getChunkX();
+            const int cZ = chunk->getChunkZ();
+
+            for (int subY = 0; subY < 16; ++subY) {
+                const uint64_t subKey = key ^ (static_cast<uint64_t>(subY) << 56);
+
+                if (m_PendingMeshKeys.contains(subKey)) {
+                    continue;
                 }
-            });
+
+                m_PendingMeshKeys.insert(subKey);
+
+                threadPool.enqueue([this, cX, cZ, subY]() {
+                    if (const auto* targetChunk = getChunk(cX, cZ)) {
+                        auto result = targetChunk->buildSectionMeshDataCPU(*this, subY);
+                        m_CompletedMeshQueue.push(std::move(result));
+                    }
+                });
+            }
         }
     }
 }
 
-void World::render(const shaders::Shader& shader) {
+void World::render(const shaders::Shader& shader, const glm::mat4& viewProjection) {
     shader.use();
+    rendering::Frustum frustum;
+    frustum.update(viewProjection);
 
-    if (ui::UIManager::isOverlayActive(ui::OverlayFlags::DebugScreen)) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    }
-
+    std::shared_lock lock(m_ChunksMutex);
     for (const auto& chunk : m_Chunks | std::views::values) {
+        const auto& subChunks = chunk->getSubChunks();
 
-        if (chunk->getVertex() == 0) continue;
+        for (int subY = 0; subY < 16; ++subY) {
+            const auto& sub = subChunks[subY];
+            if (sub.vertexCount == 0) continue;
 
-        glBindVertexArray(chunk->getVAO());
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLint>(chunk->getVertex()));
+            if (const rendering::BoundingBox box = chunk->getSubChunkBoundingBox(subY); !frustum.isBoxVisible(box)) continue;
+
+            const glm::vec3 chunkOrigin(
+                static_cast<float>(chunk->getChunkX() * 16),
+                static_cast<float>(subY * 16),
+                static_cast<float>(chunk->getChunkZ() * 16)
+            );
+
+            shader.setVec3("u_ChunkOrigin", chunkOrigin);
+
+            glBindVertexArray(sub.vao);
+            glDrawArrays(GL_TRIANGLES, 0, sub.vertexCount);
+        }
     }
-
     glBindVertexArray(0);
 }
 

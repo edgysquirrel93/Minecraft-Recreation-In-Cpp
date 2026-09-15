@@ -1,14 +1,15 @@
 #include "ChunkRendering.h"
 
-#include "../worldgen/WorldGen.h"
 #include "Engine/rendering/Rendering.h"
 #include "Engine/world/World.h"
 
 namespace engine::rendering {
 
 ChunkRendering::~ChunkRendering() {
-    if (m_ChunkVAO != 0) glDeleteVertexArrays(1, &m_ChunkVAO);
-    if (m_ChunkVBO != 0) glDeleteBuffers(1, &m_ChunkVBO);
+    for (auto& sub : m_SubChunks) {
+        if (sub.vao != 0) glDeleteVertexArrays(1, &sub.vao);
+        if (sub.vbo != 0) glDeleteBuffers(1, &sub.vbo);
+    }
 }
 
 const block::BlockType& ChunkRendering::getBlockAt(const int x, const int y, const int z) const {
@@ -29,19 +30,33 @@ void ChunkRendering::setBlock(const int x, const int y, const int z, const uint8
     }
 }
 
-ChunkRendering::ChunkMeshData ChunkRendering::buildMeshDataCPU(const world::World& world) const {
-    ChunkMeshData data{ .chunkX = m_ChunkX, .chunkZ = m_ChunkZ };
+BoundingBox ChunkRendering::getSubChunkBoundingBox(const int subY) const noexcept {
+    const auto minX = static_cast<float>(m_ChunkX * 16);
+    const auto minY = static_cast<float>(subY * 16);
+    const auto minZ = static_cast<float>(m_ChunkZ * 16);
+
+    return BoundingBox{
+        .min = {minX, minY, minZ},
+        .max = {minX + 16.0f, minY + 16.0f, minZ + 16.0f}
+    };
+}
+
+ChunkRendering::ChunkMeshData ChunkRendering::buildSectionMeshDataCPU(const world::World& world, const int subY) const {
+    ChunkMeshData data{ .chunkX = m_ChunkX, .chunkZ = m_ChunkZ, .subY = subY };
 
     const int worldXOffset = m_ChunkX * 16;
     const int worldZOffset = m_ChunkZ * 16;
 
+    const int minY = subY * 16;
+    const int maxY = minY + 16;
+
     for (int x = 0; x < 16; x++) {
-        for (int y = 0; y < 256; y++) {
+        for (int y = minY; y < maxY; y++) {
             for (int z = 0; z < 16; z++) {
                 const block::BlockType& block = getBlockAt(x, y, z);
                 if (block == blockregistry::get(blockregistry::ID_AIR)) continue;
 
-                const glm::vec3 worldBlockPos(x + worldXOffset, y, z + worldZOffset);
+                const int localY = y - minY;
 
                 for (int face = 0; face < 6; ++face) {
                     const glm::ivec3 dir {NEIGHBORS[face]};
@@ -57,7 +72,7 @@ ChunkRendering::ChunkMeshData ChunkRendering::buildMeshDataCPU(const world::Worl
                     }
 
                     if (!neighborBlock.isOpaque && neighborBlock != block) {
-                        addFaceVertices(data.vertices, worldBlockPos, face, block);
+                        addFaceVertices(data.vertices, x, localY, z, face, block);
                     }
                 }
             }
@@ -66,47 +81,44 @@ ChunkRendering::ChunkMeshData ChunkRendering::buildMeshDataCPU(const world::Worl
     return data;
 }
 
-void ChunkRendering::uploadGPU(const std::vector<Vertex>& vertices) {
+void ChunkRendering::uploadSectionGPU(const int subY, const std::vector<PackedVertex>& vertices) {
+    if (subY < 0 || subY >= 16) return;
+
+    auto& [vao, vbo, vertexCount] = m_SubChunks[subY];
+
     if (vertices.empty()) {
-        m_VertexCount = 0;
-        m_IsDirty = false;
-        if (m_ChunkVBO != 0) {
-            glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
+        vertexCount = 0;
+        if (vbo != 0) {
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
             glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
         }
         return;
     }
 
-    if (m_ChunkVAO == 0) {
-        glGenVertexArrays(1, &m_ChunkVAO);
-        glGenBuffers(1, &m_ChunkVBO);
+    if (vao == 0) {
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
 
-        glBindVertexArray(m_ChunkVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, position)));
+        glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, sizeof(PackedVertex), static_cast<void*>(nullptr));
         glEnableVertexAttribArray(0);
-
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texCoords)));
-        glEnableVertexAttribArray(1);
-
-        glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, texIndex)));
-        glEnableVertexAttribArray(2);
     } else {
-        glBindVertexArray(m_ChunkVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_ChunkVBO);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
     }
 
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)), vertices.data(), GL_DYNAMIC_DRAW);
-    m_VertexCount = static_cast<GLsizei>(vertices.size());
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(PackedVertex)), vertices.data(), GL_DYNAMIC_DRAW);
+    vertexCount = static_cast<GLsizei>(vertices.size());
     m_IsDirty = false;
 }
+void ChunkRendering::addFaceVertices(std::vector<PackedVertex>& vertices, const int lx, const int ly, const int lz,
+        const int face, const block::BlockType& block) {
 
-void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::vec3& pos, const int face, const block::BlockType& block) {
+    const auto texLayer = static_cast<uint32_t>(block.faceLayers[face]);
 
-    const auto texLayer = static_cast<float>(block.faceLayers[face]);
-
-    static const glm::vec3 FACE_VERTS[6][4] = {
+    static constexpr glm::ivec3 FACE_VERTS[6][4] = {
         // Back -Z
         { {0,0,0}, {0,1,0}, {1,1,0}, {1,0,0} },
         // Front +Z
@@ -121,17 +133,24 @@ void ChunkRendering::addFaceVertices(std::vector<Vertex>& vertices, const glm::v
         { {0,1,1}, {1,1,1}, {1,1,0}, {0,1,0} }
     };
 
-    static constexpr glm::vec2 UVs[4] = {
-        {0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}
-    };
+    static constexpr int QUAD_INDICES[6] = { 0, 1, 2, 2, 3, 0 };
 
-    vertices.push_back({ .position = pos + FACE_VERTS[face][0], .texCoords = UVs[0], .texIndex = texLayer });
-    vertices.push_back({ .position = pos + FACE_VERTS[face][1], .texCoords = UVs[1], .texIndex = texLayer });
-    vertices.push_back({ .position = pos + FACE_VERTS[face][2], .texCoords = UVs[2], .texIndex = texLayer });
+    for (const int cornerIdx : QUAD_INDICES) {
+        const glm::ivec3 cornerOffset = FACE_VERTS[face][cornerIdx];
 
-    vertices.push_back({ .position = pos + FACE_VERTS[face][2], .texCoords = UVs[2], .texIndex = texLayer });
-    vertices.push_back({ .position = pos + FACE_VERTS[face][3], .texCoords = UVs[3], .texIndex = texLayer });
-    vertices.push_back({ .position = pos + FACE_VERTS[face][0], .texCoords = UVs[0], .texIndex = texLayer });
+        const auto vx = static_cast<uint32_t>(lx + cornerOffset.x);
+        const auto vy = static_cast<uint32_t>(ly + cornerOffset.y);
+        const auto vz = static_cast<uint32_t>(lz + cornerOffset.z);
+
+        const uint32_t packed = packVertex(
+            vx, vy, vz,
+            static_cast<uint32_t>(face),
+            static_cast<uint32_t>(cornerIdx),
+            texLayer
+        );
+
+        vertices.push_back(PackedVertex{ .data = packed });
+    }
 }
 
 }

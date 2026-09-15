@@ -142,6 +142,7 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/world/World.h
         src/Engine/util/ThreadPool.h
         src/Engine/util/ConcurrentQueue.h
+        src/Engine/rendering/Frustum.h
 )
 target_include_directories(Minecraft_Recreation_Recreation PRIVATE
         src

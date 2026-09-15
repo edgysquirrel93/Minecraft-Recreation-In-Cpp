@@ -65,8 +65,7 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-    if (const auto* mainShader = shaderManager.get("main"))
-    {
+    if (const auto* mainShader = shaderManager.get("main")) {
         mainShader->use();
 
         glActiveTexture(GL_TEXTURE0);
@@ -100,7 +99,9 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
 
         mainShader->setMat4("model", glm::mat4(1.0f));
 
-        m_World.render(*mainShader);
+        const glm::mat4 boxBoundryView {projection * m_View};
+
+        m_World.render(*mainShader, boxBoundryView);
     }
 }
 
