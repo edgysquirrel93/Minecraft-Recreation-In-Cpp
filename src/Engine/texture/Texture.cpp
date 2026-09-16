@@ -22,7 +22,11 @@ void LoadTexture::loadTextureArray() {
         {.path = "assets/Textures/Blocks/bedrock.png", .layer = BlockLayer::BEDROCK},
         {.path = "assets/Textures/Blocks/glass.png", .layer = BlockLayer::GLASS},
         {.path = "assets/Textures/Blocks/water.png", .layer = BlockLayer::WATER},
-        {.path = "assets/Textures/Blocks/sand.png", .layer = BlockLayer::SAND}
+        {.path = "assets/Textures/Blocks/sand.png", .layer = BlockLayer::SAND},
+        {.path = "assets/Textures/Blocks/oak_log.png", .layer = BlockLayer::OAK_LOG},
+        {.path = "assets/Textures/Blocks/oak_log_top.png", .layer = BlockLayer::OAK_LOG_TOP},
+        {.path = "assets/Textures/Blocks/oak_planks.png", .layer = BlockLayer::OAK_PLANKS},
+        {.path = "assets/Textures/Blocks/oak_leaves.png", .layer = BlockLayer::OAK_LEAVES}
     };
 
     const int totalLayers {static_cast<int>(blocks.size())};

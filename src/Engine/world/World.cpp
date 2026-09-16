@@ -230,6 +230,20 @@ void World::setBlockAt(const int worldX, const int worldY, const int worldZ, con
     if (lz == 15) remeshSubChunk(cx, cz + 1, subY);
 }
 
+void World::setBlockWorldGen(const int worldX, const int worldY, const int worldZ, const uint16_t blockID) {
+    if (worldY < 0 || worldY >= 256) return;
+
+    const int cx = toChunkCoord(worldX);
+    const int cz = toChunkCoord(worldZ);
+    const int lx = toLocalCoord(worldX);
+    const int lz = toLocalCoord(worldZ);
+
+    if (rendering::ChunkRendering* chunk = getChunk(cx, cz)) {
+        chunk->setBlock(lx, worldY, lz, blockID);
+        chunk->makeDirty();
+    }
+}
+
 void World::update(const glm::vec3& playerPos) {
 
     const auto currentTime = std::chrono::high_resolution_clock::now();
@@ -244,14 +258,17 @@ void World::update(const glm::vec3& playerPos) {
         const int cz = generatedChunk->getChunkZ();
         const uint64_t key = getChunkKey(cx, cz);
 
-        generatedChunk->makeDirty();
+        rendering::ChunkRendering* rawChunk = generatedChunk.get();
 
         {
             std::unique_lock lock(m_ChunksMutex);
             m_Chunks[key] = std::move(generatedChunk);
         }
 
+        worldgen::WorldGen::generateTrees(*rawChunk, *this);
+
         m_GeneratingChunkKeys.erase(key);
+        rawChunk->makeDirty();
         markNeighborsDirty(cx, cz);
     }
 

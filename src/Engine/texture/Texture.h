@@ -44,6 +44,11 @@ struct BlockLayer {
     static constexpr int GLASS      {5};
     static constexpr int WATER      {6};
     static constexpr int SAND       {7};
+    static constexpr int OAK_LOG    {8};
+    static constexpr int OAK_LOG_TOP {9};
+    static constexpr int OAK_PLANKS {10};
+    static constexpr int OAK_LEAVES {11};
+
 };
 
 class LoadTexture {

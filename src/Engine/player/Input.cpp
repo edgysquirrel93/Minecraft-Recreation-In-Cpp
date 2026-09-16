@@ -180,13 +180,16 @@ void Player::processSurvivalMovement(GLFWwindow* window, const float deltaTime)
         }
     }
 
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GRASS;
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_DIRT;
-    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_STONE;
-    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_BEDROCK;
-    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GLASS;
-    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_WATER;
-    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_SAND;
+    if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GRASS;
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_DIRT;
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_STONE;
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_BEDROCK;
+    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_GLASS;
+    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_WATER;
+    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_SAND;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_OAK_LOG;
+    if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_OAK_PLANKS;
+    if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS) s_BuildingBlock = blockregistry::ID_OAK_LEAVES;
 
     auto hitResult = Camera::raycast(
         config::LevelData::get().getCameraPos(),

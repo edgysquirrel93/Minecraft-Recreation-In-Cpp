@@ -95,6 +95,7 @@ public:
         return m_PendingMeshKeys.contains(key); }
 
     void setBlockAt(int worldX, int worldY, int worldZ, uint16_t blockID);
+    void setBlockWorldGen(int worldX, int worldY, int worldZ, uint16_t blockID);
 
     NeighborChunks getNeighborSnapshot(int cx, int cz) const;
 

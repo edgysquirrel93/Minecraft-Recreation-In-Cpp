@@ -93,7 +93,16 @@ ChunkRendering::ChunkMeshData ChunkRendering::buildSectionMeshDataCPU(const worl
                     const int ny = y + dir.y;
                     const int nz = z + dir.z;
 
-                    if (const block::BlockType& neighborBlock = getNeighborBlock(nx, ny, nz); !neighborBlock.isOpaque && neighborBlock != block) {
+                    const block::BlockType& neighborBlock = getNeighborBlock(nx, ny, nz);
+                    bool shouldDrawFace = !neighborBlock.isOpaque;
+
+                    if (block == blockregistry::get(blockregistry::ID_OAK_LEAVES)) {
+                        shouldDrawFace = true;
+                    } else {
+                        shouldDrawFace = !neighborBlock.isOpaque && neighborBlock != block;
+                    }
+
+                    if (shouldDrawFace) {
                         addFaceVertices(data.vertices, x, localY, z, face, block);
                     }
                 }
