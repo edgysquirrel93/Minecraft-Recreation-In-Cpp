@@ -31,6 +31,8 @@ enum class ScreenState {
 
 enum OverlayFlags {
     DebugScreen,
+    Hotbar,
+    Crosshair,
     Overlay_Count
 };
 
@@ -52,6 +54,8 @@ class UIManager {
     inline static float s_Scale {1.0f};
     inline static float s_ButtonHeight {55.0f};
 
+    inline static int s_ActiveSlot {0};
+
     // private functions
     static ImGuiIO& getIO() {return ImGui::GetIO();}
     static void drawMCText(const std::string& text, ImU32 col);
@@ -72,7 +76,12 @@ class UIManager {
     static void drawCreateNewWorldScreen();
     static void drawMoreWorldOptionsScreen();
     static void drawPauseMenuScreen();
+
+    // overlays
     static void drawDebugMenuScreen();
+    static void drawHotbar(int& activeSlot);
+    static void drawCrosshair();
+    static void renderInGameHUD(int& activeSlot);
 
     public:
     UIManager();

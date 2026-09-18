@@ -55,16 +55,6 @@ inline constexpr float block[] = {
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 };
 
-inline constexpr float crosshair[] = {
-    // Vertical Bar
-    -0.0025f,  0.025f, 0.0f,   0.0025f,  0.025f, 0.0f,  -0.0025f, -0.025f, 0.0f,
-    -0.0025f, -0.025f, 0.0f,   0.0025f,  0.025f, 0.0f,   0.0025f, -0.025f, 0.0f,
-
-    // Horizontal Bar
-    -0.025f,   0.0025f, 0.0f,   0.025f,   0.0025f, 0.0f,  -0.025f,  -0.0025f, 0.0f,
-    -0.025f,  -0.0025f, 0.0f,   0.025f,   0.0025f, 0.0f,   0.025f,  -0.0025f, 0.0f
-};
-
 inline constexpr float selectionCube[] = {
     // Bottom square
     -0.5f, -0.5f, -0.5f,   0.5f, -0.5f, -0.5f,
@@ -94,15 +84,6 @@ void MeshData::Init()
     glBindVertexArray(selVAO);
     glBindBuffer(GL_ARRAY_BUFFER, selVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(selectionCube), selectionCube, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), static_cast<void*>(nullptr));
-    glEnableVertexAttribArray(0);
-
-    // 2. Crosshair
-    glGenVertexArrays(1, &crossVAO);
-    glGenBuffers(1, &crossVBO);
-    glBindVertexArray(crossVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, crossVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(crosshair), crosshair, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), static_cast<void*>(nullptr));
     glEnableVertexAttribArray(0);
 

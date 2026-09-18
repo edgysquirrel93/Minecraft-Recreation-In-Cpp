@@ -116,6 +116,9 @@ void LoadTexture::loadAllTextures() {
     ui.text_field_highlighted.loadTexture("assets/Textures/UI/text_field_highlighted.png");
     ui.scroller.loadTexture("assets/Textures/UI/scroller.png");
     ui.scroller_background.loadTexture("assets/Textures/UI/scroller_background.png");
+    ui.hotbar.loadTexture("assets/Textures/UI/hotbar.png");
+    ui.hotbar_selection.loadTexture("assets/Textures/UI/hotbar_selection.png");
+    ui.crosshair.loadTexture("assets/Textures/UI/crosshair.png");
     ui.dirt_ui.loadTexture("assets/Textures/Blocks/dirt.png");
 }
 

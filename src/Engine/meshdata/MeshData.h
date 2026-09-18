@@ -12,7 +12,6 @@ struct UVCoord {
 struct MeshData
 {
     inline static unsigned int selVAO {}, selVBO = {};
-    inline static unsigned int crossVAO = {}, crossVBO = {};
     inline static unsigned int blockVAO = {}, blockVBO = {};
 
     static void Init();

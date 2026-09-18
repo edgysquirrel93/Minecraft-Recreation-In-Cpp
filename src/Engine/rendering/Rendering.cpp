@@ -32,7 +32,6 @@ void Rendering::drawBlock(const block::BlockType& blockType, const glm::vec3& po
 void Rendering::gameRender(ShaderManager& shaderManager, GLFWwindow* window) {
     renderMainShader(shaderManager, window);
     renderTransparentBlock(shaderManager);
-    renderCrosshair(shaderManager, window);
     renderSelectionBox(shaderManager, window);
 }
 
@@ -103,31 +102,6 @@ void Rendering::renderMainShader(ShaderManager& shaderManager, GLFWwindow* windo
         const glm::mat4 boxBoundryView {projection * m_View};
 
         m_World.render(*mainShader, boxBoundryView);
-    }
-}
-
-void Rendering::renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window) {
-
-    int width, height;
-
-    if (const auto* crosshairShader = shaderManager.get("crosshair")) {
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glfwGetFramebufferSize(window, &width, &height);
-        glViewport(0, 0, width, height);
-        float aspect = 1.0f;
-        aspect = static_cast<float>(width) / static_cast<float>(height > 0 ? height : 1);
-        crosshairShader->use();
-        crosshairShader->setFloat("aspectRatio", aspect);
-        if (meshdata::MeshData::crossVAO == 0) return;
-        glBindVertexArray(meshdata::MeshData::crossVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 12);
-        glDisable(GL_BLEND);
-        glBlendEquation(GL_FUNC_ADD);
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
     }
 }
 

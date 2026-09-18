@@ -28,6 +28,9 @@ struct UITexture {
     Texture text_field_highlighted;
     Texture scroller;
     Texture scroller_background;
+    Texture hotbar;
+    Texture hotbar_selection;
+    Texture crosshair;
     Texture dirt_ui;
 };
 

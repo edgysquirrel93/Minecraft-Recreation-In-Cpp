@@ -195,6 +195,12 @@ bool UIManager::minecraftTextInput(const char* label, std::string& inputText, co
     ImGuiContext& g {*GImGui};
     const ImGuiID id {window->GetID(label)};
 
+    static std::unordered_map<ImGuiID, size_t> cursorPositions;
+    static std::unordered_map<ImGuiID, bool> previousFocusState;
+
+    size_t& cursorPos = cursorPositions[id];
+    bool& prevFocused = previousFocusState[id];
+
     const ImVec2 pos {window->DC.CursorPos};
     const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
 
@@ -211,18 +217,41 @@ bool UIManager::minecraftTextInput(const char* label, std::string& inputText, co
         ImGui::FocusWindow(window);
     }
 
-    // Handle keyboard input when focused
+    if (focused && !prevFocused) {
+        cursorPos = inputText.length();
+    }
+    prevFocused = focused;
+
+    if (cursorPos > inputText.length()) {
+        cursorPos = inputText.length();
+    }
+
     if (focused)
     {
-        // Handle backspace
-        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !inputText.empty())
-            inputText.pop_back();
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && cursorPos > 0) {
+            cursorPos--;
+        }
 
-        // Handle regular character input
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && cursorPos < inputText.length()) {
+            cursorPos++;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !inputText.empty() && cursorPos > 0) {
+            inputText.erase(cursorPos - 1, 1);
+            cursorPos--;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && cursorPos < inputText.length()) {
+            inputText.erase(cursorPos, 1);
+        }
+
         for (const ImWchar c : g.IO.InputQueueCharacters)
         {
-            if (constexpr int maxChars {32}; c >= 32 && inputText.length() < maxChars)
-                inputText += static_cast<char>(c);
+            if (constexpr size_t maxChars {32}; c >= 32 && inputText.length() < maxChars)
+            {
+                inputText.insert(cursorPos, 1, static_cast<char>(c));
+                cursorPos++;
+            }
         }
     }
 
@@ -232,22 +261,35 @@ bool UIManager::minecraftTextInput(const char* label, std::string& inputText, co
             ImGui::ClearActiveID();
     }
 
-    // Render
     ImDrawList* drawList {ImGui::GetWindowDrawList()};
     unsigned const int texHighlighted {texture::LoadTexture::ui.text_field_highlighted},
     texNormal {texture::LoadTexture::ui.text_field};
     const unsigned int currentTex {(hovered || focused) ? texHighlighted : texNormal};
     drawList->AddImage(reinterpret_cast<void*>(static_cast<intptr_t>(currentTex)), bb.Min, bb.Max);
 
-    // Draw text
     std::string displayText {inputText};
     if (focused && static_cast<int>(ImGui::GetTime() * 2) % 2 == 0)
-        displayText += '_';
+    {
+        if (cursorPos <= displayText.length()) {
+            displayText.insert(cursorPos, 1, '_');
+        } else {
+            displayText += '_';
+        }
+    }
 
     const ImVec2 textPos(bb.Min.x + 10.0f, bb.Min.y + (bb.GetHeight() - 32.0f) * 0.5f);
     drawTextWithShadow(textPos, displayText.c_str());
 
     return focused;
+}
+
+void UIManager::renderInGameHUD(int& activeSlot) {
+    if (s_ActiveOverlays[Hotbar]) {
+        drawHotbar(activeSlot);
+    }
+    if (s_ActiveOverlays[Crosshair]) {
+        drawCrosshair();
+    }
 }
 
 void UIManager::init(GLFWwindow* window) {
@@ -318,6 +360,8 @@ void UIManager::update() {
             drawBackgroundScreen();
             break;
         case ScreenState::InGame:
+            renderInGameHUD(s_ActiveSlot);
+            break;
         case ScreenState::InMenu:
             break;
     }
@@ -651,6 +695,8 @@ void UIManager::drawSingleplayerScreen() {
         // }
         config::LevelData::get().setCurrentWorldName(s_SelectedWorld);
         config::LevelData::get().loadLevel();
+        toggleOverlay(Hotbar);
+        toggleOverlay(Crosshair);
         input::Input::enterGameInputMode(s_GlfwWindow);
     }
 
@@ -780,7 +826,7 @@ void UIManager::drawOptionsScreen()
     float tempRenderDist {static_cast<float>(renderDistance)};
 
     if (constexpr auto renderDistanceDisplay = "##renderDistance";
-    minecraftSlider(renderDistanceDisplay, renderDisDisplay, &tempRenderDist, 2.0f, 24.0f)) {
+    minecraftSlider(renderDistanceDisplay, renderDisDisplay, &tempRenderDist, 2.0f, 48.0f)) {
         renderDistance = static_cast<int>(tempRenderDist);
         config::SettingsManager::get().setRenderDistance(renderDistance);
     }
@@ -824,7 +870,7 @@ void UIManager::drawOptionsScreen()
         config::SettingsManager::get().setGuiScale(guiScale);
     }
 
-    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.7f);
+    ImGui::SetCursorPosY(getIO().DisplaySize.y * 0.8f);
     ImGui::SetCursorPosX(center - (500.0f / 2 * s_Scale));
 
     if (minecraftButton("Done", ImVec2(500 * s_Scale, s_ButtonHeight))) {
@@ -1068,6 +1114,8 @@ void UIManager::drawCreateNewWorldScreen() {
         config::LevelData::get().loadLevel();
         s_CurrentScreen = ScreenState::InGame;
         input::Input::enterGameInputMode(s_GlfwWindow);
+        toggleOverlay(Hotbar);
+        toggleOverlay(Crosshair);
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1200,6 +1248,8 @@ void UIManager::drawMoreWorldOptionsScreen() {
         config::LevelData::get().loadLevel();
         s_CurrentScreen = ScreenState::InGame;
         input::Input::enterGameInputMode(s_GlfwWindow);
+        toggleOverlay(Hotbar);
+        toggleOverlay(Crosshair);
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1292,6 +1342,8 @@ void UIManager::drawPauseMenuScreen() {
         // currentWorldName = "";
         s_CurrentScreen = ScreenState::SingleplayerScreen;
         config::LevelData::get().saveLevel();
+        toggleOverlay(Hotbar);
+        toggleOverlay(Crosshair);
     }
     ImGui::PopFont();
     ImGui::End();
@@ -1361,6 +1413,111 @@ void UIManager::drawDebugMenuScreen() {
 
     ImGui::PopFont();
     ImGui::End();
+}
+
+void UIManager::drawHotbar(int& activeSlot) {
+    for (int i = 0; i < 9; ++i) {
+        if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_1 + i))) {
+            activeSlot = i;
+        }
+    }
+
+    if (const float wheel = ImGui::GetIO().MouseWheel; wheel != 0.0f) {
+        activeSlot = static_cast<int>(static_cast<float>(activeSlot) - wheel);
+        if (activeSlot < 0) activeSlot = 8;
+        if (activeSlot > 8) activeSlot = 0;
+    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    constexpr float baseWidth = 182.0f;
+    constexpr float baseHeight = 22.0f;
+    constexpr float scale = 3.0f;
+
+    const float barWidth = baseWidth * scale * s_Scale;
+    const float barHeight = baseHeight * scale * s_Scale;
+
+    const float startX = (viewport->Size.x - barWidth) * 0.5f;
+    const float startY = viewport->Size.y - barHeight - 16.0f;
+
+    ImGui::SetNextWindowPos(ImVec2(startX, startY));
+    ImGui::SetNextWindowSize(ImVec2(barWidth, barHeight));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+    ImGui::Begin("Hotbar", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoInputs);
+
+    ImGui::PushFont(s_McFont);
+    ImGui::SetWindowFontScale(s_Scale);
+
+    const auto hotbarTex {reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.hotbar))};
+    ImGui::Image(hotbarTex, ImVec2(barWidth, barHeight));
+
+    constexpr float slotBaseSize = 20.0f;
+    const float slotSize = slotBaseSize * scale * s_Scale;
+
+    const float leftMargin = 1.0f * scale * s_Scale;
+    const float slotX = leftMargin + (static_cast<float>(activeSlot) * slotSize);
+    const float slotY = 1.0f * scale * s_Scale;
+
+    const float offsetX = 1.25f * scale * s_Scale;
+    const float offsetY = 1.5f * scale * s_Scale;
+
+    const float selWidth = 24.0f * scale * s_Scale;
+    const float selHeight = 23.0f * scale * s_Scale;
+
+    const ImVec2 windowPos = ImGui::GetWindowPos();
+    const ImVec2 selMin(windowPos.x + slotX - offsetX, windowPos.y + slotY - offsetY);
+    const ImVec2 selMax(selMin.x + selWidth, selMin.y + selHeight);
+
+    const auto selectionTex {reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.hotbar_selection))};
+    ImGui::GetForegroundDrawList()->AddImage(selectionTex, selMin, selMax);
+
+    ImGui::PopFont();
+    ImGui::End();
+
+    ImGui::PopStyleVar(2);
+}
+
+void UIManager::drawCrosshair() {
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    constexpr float baseWidth = 15.0f;
+    constexpr float baseHeight = 15.0f;
+    constexpr float scale = 2.5f;
+
+    const float crosshairWidth = baseWidth * scale * s_Scale;
+    const float crosshairHeight = baseHeight * scale * s_Scale;
+
+    const float startX = (viewport->Size.x - crosshairWidth) * 0.5f;
+    const float startY = (viewport->Size.y - crosshairHeight) * 0.5f;
+
+    ImGui::SetNextWindowPos(ImVec2(startX, startY));
+    ImGui::SetNextWindowSize(ImVec2(crosshairWidth, crosshairHeight));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+    ImGui::Begin("Crosshair", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoInputs);
+
+    const auto crosshairTex {reinterpret_cast<ImTextureID>(static_cast<unsigned int>(texture::LoadTexture::ui.crosshair))};
+    ImGui::Image(crosshairTex, ImVec2(crosshairWidth, crosshairHeight));
+
+    ImGui::End();
+    ImGui::PopStyleVar(2);
 }
 
 void UIManager::drawMCText(const std::string& text, const ImU32 col) {

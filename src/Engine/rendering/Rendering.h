@@ -9,7 +9,6 @@
 #include <unordered_map>
 
 #include "ChunkRendering.h"
-#include "Engine/util/ThreadPool.h"
 #include "Engine/world/World.h"
 
 namespace engine::rendering
@@ -21,8 +20,6 @@ public:
     ShaderManager() {
         load("main", "assets/Shaders/Vertices/MainShader.vs",
                          "assets/Shaders/Fragments/MainShader.fs");
-        load("crosshair", "assets/Shaders/Vertices/CrosshairShader.vs",
-            "assets/Shaders/Fragments/CrosshairShader.fs");
         load("selectionBox", "assets/Shaders/Vertices/SelectionBoxShader.vs",
             "assets/Shaders/Fragments/SelectionBoxShader.fs");
     }
@@ -44,7 +41,6 @@ class Rendering {
     // Rendering Shaders
     static void renderTransparentBlock(ShaderManager& shaderManager);
     void renderMainShader(ShaderManager& shaderManager, GLFWwindow* window);
-    static void renderCrosshair(ShaderManager& shaderManager, GLFWwindow* window);
     void renderSelectionBox(ShaderManager& shaderManager, GLFWwindow* window);
 public:
     Rendering();
