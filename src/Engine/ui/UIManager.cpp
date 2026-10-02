@@ -835,24 +835,10 @@ void UIManager::drawOptionsScreen()
     ImGui::SetCursorPosX(center - buttonWidth - spacing);
 
     bool fullscreenBool {config::SettingsManager::get().getFullscreenBool()};
-    std::string fullscreenLabel;
+    const std::string fullscreenText = "Fullscreen: " + std::string(fullscreenBool ? "ON" : "OFF");
 
-    if (fullscreenBool == false)
-        fullscreenLabel = "OFF";
-    else
-        fullscreenLabel = "ON";
-
-    if (fullscreenBool == false && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500 * s_Scale, s_ButtonHeight))) {
-        fullscreenLabel = "ON";
-        fullscreenBool = true;
-        config::SettingsManager::get().setFullscreenBool(fullscreenBool);
-    }
-
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(center - buttonWidth - spacing);
-
-    if (fullscreenBool == true && minecraftButton(("Fullscreen: " + fullscreenLabel).c_str(), ImVec2(500 * s_Scale, s_ButtonHeight))) {
-        fullscreenBool = false;
+    if (minecraftButton(fullscreenText.c_str(), ImVec2(500 * s_Scale, s_ButtonHeight))) {
+        fullscreenBool = !fullscreenBool;
         config::SettingsManager::get().setFullscreenBool(fullscreenBool);
     }
 

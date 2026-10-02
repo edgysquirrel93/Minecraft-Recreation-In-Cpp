@@ -39,7 +39,7 @@ bool WorldGen::treeHasHeadroom(const world::World& world, const int x, const int
     for (int cy = y + 2; cy <= y + 3; ++cy) {
         for (int cx = x - 2; cx <= x + 2; ++cx) {
             for (int cz = z - 2; cz <= z + 2; ++cz) {
-                if (uint8_t blockID = world.getBlockIDAt(cx, cy, cz); blockID != blockregistry::ID_AIR) {
+                if (const uint8_t blockID = world.getBlockIDAt(cx, cy, cz); blockID != blockregistry::ID_AIR) {
                     return false;
                 }
             }
