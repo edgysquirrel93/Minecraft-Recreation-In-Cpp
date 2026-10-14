@@ -13,6 +13,7 @@
 
 #include "../config/SettingsManager.h"
 #include "Engine/player/Input.h"
+#include "Engine/world/World.h"
 
 namespace engine::ui {
 
@@ -359,6 +360,10 @@ void UIManager::update() {
             drawPauseMenuScreen();
             drawBackgroundScreen();
             break;
+        case ScreenState::LoadingScreen:
+            drawLoadingScreen();
+            drawBackgroundScreen();
+            break;
         case ScreenState::InGame:
             renderInGameHUD(s_ActiveSlot);
             break;
@@ -695,9 +700,8 @@ void UIManager::drawSingleplayerScreen() {
         // }
         config::LevelData::get().setCurrentWorldName(s_SelectedWorld);
         config::LevelData::get().loadLevel();
-        toggleOverlay(Hotbar);
-        toggleOverlay(Crosshair);
-        input::Input::enterGameInputMode(s_GlfwWindow);
+        if (auto* world = config::LevelData::get().getWorld()) {world->switchToWorld(s_SelectedWorld);}
+        s_CurrentScreen = ScreenState::LoadingScreen;
     }
 
     ImGui::SetCursorPos(ImVec2((windowWidth * 0.5f) - btnW - spacing, bottomY));
@@ -1094,14 +1098,10 @@ void UIManager::drawCreateNewWorldScreen() {
         // }
         //
         worldName = finalName;
+        s_NewWorld = true;
         s_SeedStringInput = "";
-        config::LevelData::get().setCurrentWorldName(worldName);
-        config::LevelData::get().saveLevel();
-        config::LevelData::get().loadLevel();
-        s_CurrentScreen = ScreenState::InGame;
-        input::Input::enterGameInputMode(s_GlfwWindow);
-        toggleOverlay(Hotbar);
-        toggleOverlay(Crosshair);
+        if (auto* world = config::LevelData::get().getWorld()) {world->switchToWorld(finalName);}
+        s_CurrentScreen = ScreenState::LoadingScreen;
         // currentState = LOADING;
         // loadingScreen = true;
         // worldLoaded = false;
@@ -1228,35 +1228,10 @@ void UIManager::drawMoreWorldOptionsScreen() {
         // }
         //
         worldName = finalName;
+        s_NewWorld = true;
         s_SeedStringInput = "";
-        config::LevelData::get().setCurrentWorldName(worldName);
-        config::LevelData::get().saveLevel();
-        config::LevelData::get().loadLevel();
-        s_CurrentScreen = ScreenState::InGame;
-        input::Input::enterGameInputMode(s_GlfwWindow);
-        toggleOverlay(Hotbar);
-        toggleOverlay(Crosshair);
-        // currentState = LOADING;
-        // loadingScreen = true;
-        // worldLoaded = false;
-        // isWorldReady = false;
-        // loadingProgress = 0.0f;
-        //
-        // createWorldScreen = false;
-        //
-        // {
-        //     std::lock_guard lock(queueMutex);
-        //     worldMap.clear();
-        //     pendingTasks.clear();
-        //     finishedTasks.clear();
-        // }
-        //
-        // bool expected = false;
-        // if (isLoading.compare_exchange_strong(expected, true)) {
-        //     std::thread([finalName]() {
-        //         startWorldLoad(finalName);
-        //     }).detach();
-        // }
+        if (auto* world = config::LevelData::get().getWorld()) {world->switchToWorld(finalName);}
+        s_CurrentScreen = ScreenState::LoadingScreen;
     }
 
     ImGui::SetCursorPos(ImVec2(centerX + spacing, static_cast<float>(windowHeight * 0.9)));
@@ -1331,6 +1306,84 @@ void UIManager::drawPauseMenuScreen() {
         toggleOverlay(Hotbar);
         toggleOverlay(Crosshair);
     }
+    ImGui::PopFont();
+    ImGui::End();
+}
+
+void UIManager::drawLoadingScreen() {
+    if (const auto* world = config::LevelData::get().getWorld()) {
+        const glm::vec3 playerPos = config::LevelData::get().getCameraPos();
+        s_LoadingProgress = world->getSpawnLoadProgress(playerPos, 1);
+
+        if (s_LoadingProgress >= 1.0f) {
+            if (s_NewWorld)
+            {
+                auto playerHeight {config::LevelData::get().getCameraPos()};
+                const int blockX = static_cast<int>(std::floor(playerPos.x));
+                const int blockZ = static_cast<int>(std::floor(playerPos.z));
+                for (int i = 256; i > 0; i--)
+                {
+                    if (const uint8_t blockID = config::LevelData::get().getWorld()->getBlockIDAt(blockX, i, blockZ); blockID == blockregistry::ID_AIR)
+                    {
+                        playerHeight.y--;
+                    }
+                    else {
+                        playerHeight.y = static_cast<float>(i + 1) + 1.62f;
+                        break;
+                    }
+                }
+                config::LevelData::get().setCameraPos(playerHeight);
+                s_NewWorld = false;
+            }
+            s_CurrentScreen = ScreenState::InGame;
+            input::Input::enterGameInputMode(s_GlfwWindow);
+            toggleOverlay(Hotbar);
+            toggleOverlay(Crosshair);
+            return;
+        }
+    }
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(getIO().DisplaySize);
+
+    ImGui::Begin("LoadingScreen", nullptr,
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                 ImGuiWindowFlags_NoMove |ImGuiWindowFlags_NoBackground
+                 | ImGuiWindowFlags_NoScrollbar);
+
+    ImGui::PushFont(s_McFont);
+    ImGui::SetWindowFontScale(s_Scale);
+
+    const float windowWidth {ImGui::GetWindowWidth()};
+    const float windowHeight {ImGui::GetWindowHeight()};
+    ImDrawList* dl {ImGui::GetWindowDrawList()};
+
+    const auto center {ImVec2(windowWidth / 2.0f, windowHeight / 2.0f)};
+    const float barWidth {300.0f * s_Scale};
+    const float barHeight {4.0f * s_Scale};
+    const float barYOffset {50.0f * s_Scale};
+
+    const std::string loadTextTitle = "Loading level";
+    const ImVec2 titleWidth = ImGui::CalcTextSize(loadTextTitle.c_str());
+    const std::string loadText = "Building Terrain";
+    const ImVec2 textWidth = ImGui::CalcTextSize(loadText.c_str());
+
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - titleWidth.x / 2, static_cast<float>(windowHeight * 0.4)));
+    drawMCText(loadTextTitle);
+
+    ImGui::SetCursorPos(ImVec2((windowWidth / 2) - textWidth.x / 2, static_cast<float>(windowHeight * 0.5)));
+    drawMCText(loadText);
+
+    const auto barMin = ImVec2(center.x - barWidth / 2.0f, center.y + barYOffset);
+    const auto barMax = ImVec2(center.x + barWidth / 2.0f, center.y + barYOffset + barHeight);
+
+    dl->AddRectFilled(barMin, barMax, IM_COL32(128, 128, 128, 255));
+
+    const float currentProgressWidth = barWidth * ImSaturate(s_LoadingProgress);
+    dl->AddRectFilled(barMin, ImVec2(barMin.x + currentProgressWidth, barMax.y), IM_COL32(128, 255, 128, 255));
+
+    ImGui::Dummy(ImVec2(barWidth, barHeight + 100.0f));
+
     ImGui::PopFont();
     ImGui::End();
 }

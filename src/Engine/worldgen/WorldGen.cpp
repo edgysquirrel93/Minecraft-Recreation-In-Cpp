@@ -19,6 +19,64 @@ siv::PerlinNoise::seed_type WorldGen::hashSeed64(const int64_t seed) noexcept {
     return x;
 }
 
+double WorldGen::getPlainsHeight(const double wx, const double wz) const {
+    return m_Perlin.octave2D_11(wx * 0.006, wz * 0.006, 3) * 6.0;
+}
+
+double WorldGen::getContinentalness(const double wx, const double wz) const {
+    const double rawContinent = m_Perlin.octave2D_11(wx * 0.002, wz * 0.002, 3);
+    return std::pow(std::abs(rawContinent), 1.2) * (rawContinent < 0 ? -1.0 : 1.0);
+}
+
+    double WorldGen::getMountainHeight(const double wx, const double wz) const {
+    const double broadBase = std::abs(m_Perlin.octave2D_11(wx * 0.003, wz * 0.003, 2));
+
+    const double ridge1 = 1.0 - std::abs(m_Perlin.octave2D_11(wx * 0.008, wz * 0.008, 3));
+    const double ridge2 = 1.0 - std::abs(m_Perlin.octave2D_11(wx * 0.02, wz * 0.02, 2));
+
+    const double peakShape = (broadBase * 0.35) + (std::pow(ridge1, 1.4) * (ridge2 * 0.5 + 0.5) * 0.65);
+
+    return peakShape * 135.0;
+}
+double WorldGen::getTerrainHeight(const double wx, const double wz) const {
+    constexpr double SEA_LEVEL = 62.0;
+    const double continent = getContinentalness(wx, wz);
+
+    const double mountainWeight = std::clamp((continent + 0.05) * 1.5, 0.0, 1.0);
+
+    const double plains = getPlainsHeight(wx, wz);
+    const double mountains = getMountainHeight(wx, wz) * mountainWeight;
+
+    return SEA_LEVEL + plains + mountains;
+}
+
+bool WorldGen::isCliff(const double wx, const double wz, const double currentHeight) const {
+    const double neighborHeight = getTerrainHeight(wx + 2.0, wz);
+    return std::abs(currentHeight - neighborHeight) > 5.0;
+}
+
+bool WorldGen::isCaveAt(const double wx, const int y, const double wz) const {
+    const double cave1 = m_Perlin.octave3D_11(wx * 0.025, y * 0.025, wz * 0.025, 2);
+    const double cave2 = m_Perlin.octave3D_11((wx + 75.0) * 0.025, y * 0.025, (wz + 75.0) * 0.025, 2);
+    return (std::abs(cave1) < 0.12 && std::abs(cave2) < 0.12);
+}
+
+uint8_t WorldGen::getBlockType(const int y, const int surfaceHeight, const bool isCave) {
+    constexpr int SEA_LEVEL{62};
+
+    if (isCave) {
+        return blockregistry::ID_AIR;
+    }
+
+    if (y == surfaceHeight) {
+        return (surfaceHeight <= SEA_LEVEL) ? blockregistry::ID_SAND : blockregistry::ID_GRASS;
+    }
+    if (y >= surfaceHeight - 3) {
+        return (surfaceHeight <= SEA_LEVEL) ? blockregistry::ID_SAND : blockregistry::ID_DIRT;
+    }
+    return blockregistry::ID_STONE;
+}
+
 int WorldGen::findGroundLevel(const rendering::ChunkRendering& chunk, const int x, const int z) {
     for (int y = 255; y >= 0; --y) {
         if (const auto& block = chunk.getBlockAt(x, y, z); block != blockregistry::get(blockregistry::ID_AIR)) {
@@ -49,7 +107,7 @@ bool WorldGen::treeHasHeadroom(const world::World& world, const int x, const int
     for (int cy = y + 4; cy <= y + 5; ++cy) {
         for (int cx = x - 1; cx <= x + 1; ++cx) {
             for (int cz = z - 1; cz <= z + 1; ++cz) {
-                if (uint8_t blockID = world.getBlockIDAt(cx, cy, cz); blockID != blockregistry::ID_AIR) {
+                if (const uint8_t blockID = world.getBlockIDAt(cx, cy, cz); blockID != blockregistry::ID_AIR) {
                     return false;
                 }
             }
@@ -91,7 +149,7 @@ void WorldGen::placeTreeStructure(world::World& world, const int x, const int y,
     }
 }
 
-void WorldGen::generateTrees(const rendering::ChunkRendering& chunk, const world::World& world) {
+void WorldGen::generateTrees(const rendering::ChunkRendering& chunk, const world::World& world) const {
     const int chunkX = chunk.getChunkX();
     const int chunkZ = chunk.getChunkZ();
 
@@ -100,17 +158,22 @@ void WorldGen::generateTrees(const rendering::ChunkRendering& chunk, const world
 
     for (int x = 2; x < 14; ++x) {
         for (int z = 2; z < 14; ++z) {
+            const int worldX = (chunkX * 16) + x;
+            const int worldZ = (chunkZ * 16) + z;
 
-            if (dist(rng) > 0.003f) continue;
+            const double forestMask = m_Perlin.octave2D_11(worldX * 0.003, worldZ * 0.003, 2);
+
+            float spawnChance = 0.0005f;
+            if (forestMask > 0.35) {
+                spawnChance = 0.025f;
+            }
+
+            if (dist(rng) > spawnChance) continue;
 
             const int surfaceY = findGroundLevel(chunk, x, z);
             if (surfaceY == -1) continue;
 
-            if (const auto& surfaceBlock = chunk.getBlockAt(x, surfaceY, z); surfaceBlock != blockregistry::get(blockregistry::ID_GRASS)) continue;
-
-            const int worldX = (chunkX * 16) + x;
-            const int worldZ = (chunkZ * 16) + z;
-
+            if (chunk.getBlockAt(x, surfaceY, z) != blockregistry::get(blockregistry::ID_GRASS)) continue;
             if (!treeHasHeadroom(world, worldX, surfaceY + 1, worldZ)) continue;
 
             placeTreeStructure(const_cast<world::World&>(world), worldX, surfaceY + 1, worldZ);
@@ -124,64 +187,36 @@ void WorldGen::generateChunkData(rendering::ChunkRendering& chunk) const {
 
     for (int x = 0; x < 16; ++x) {
         const double wx = cx * 16 + x;
-        const double wx_005 = wx * 0.005;
-        const double wx_02 = wx * 0.02;
-
         for (int z = 0; z < 16; ++z) {
-            constexpr int SEA_LEVEL{62};
             const double wz = cz * 16 + z;
-            const double wz_005 = wz * 0.005;
-            const double wz_02 = wz * 0.02;
 
-            const double noiseVal = m_Perlin.octave2D_11(wx_005, wz_005, 4);
+            const double surfaceHeightDbl = getTerrainHeight(wx, wz);
+            const int surfaceHeight = static_cast<int>(std::round(surfaceHeightDbl));
 
-            double heightFactor = 0.0;
-            if (noiseVal < 0.0) {
-                heightFactor = noiseVal * 0.3;
-            } else {
-                heightFactor = std::pow(noiseVal, 1.8) * 2.8;
-            }
+            const double surfaceOpenNoise = m_Perlin.octave2D_11(wx * 0.03, wz * 0.03, 2);
+            const bool allowSurfaceOpening = (surfaceOpenNoise > 0.65);
 
-            const double baseHeight = 65.0 + (heightFactor * 55.0);
+            const int caveBuffer = allowSurfaceOpening ? 0 : 3;
 
-            const int maxY = std::min(255, static_cast<int>(std::ceil(baseHeight + 25.0)));
-            const int minY = std::max(1, static_cast<int>(std::floor(baseHeight - 30.0)));
-
-            int solidBlocksAbove = 0;
-
-            for (int y = 255; y > maxY; --y) {
-                const uint8_t blockID = (y <= SEA_LEVEL) ? blockregistry::ID_WATER : blockregistry::ID_AIR;
-                chunk.setBlock(x, y, z, blockID);
-            }
-
-            for (int y = maxY; y >= minY; --y) {
+            for (int y = 255; y >= 0; --y) {
                 uint8_t blockID = blockregistry::ID_AIR;
-                const double noise3D = m_Perlin.octave3D_11(wx_02, y * 0.025, wz_02, 4);
 
-                if (const double density = (baseHeight - y) + (noise3D * 20.0); density > 0.0) {
-                    if (solidBlocksAbove == 0) {
-                        blockID = (y >= SEA_LEVEL - 1) ? blockregistry::ID_GRASS : blockregistry::ID_SAND;
-                    } else if (solidBlocksAbove < 4) {
-                        blockID = (y < SEA_LEVEL) ? blockregistry::ID_SAND : blockregistry::ID_DIRT;
-                    } else {
-                        blockID = blockregistry::ID_STONE;
-                    }
-                    solidBlocksAbove++;
-                } else {
-                    solidBlocksAbove = 0;
-                    if (y <= SEA_LEVEL) {
-                        blockID = blockregistry::ID_WATER;
-                    }
+                if (y <= 4) {
+                    blockID = blockregistry::ID_BEDROCK;
+                }
+                else if (y > surfaceHeight)
+                {
+                    constexpr int SEA_LEVEL{62};
+                    blockID = (y <= SEA_LEVEL) ? blockregistry::ID_WATER : blockregistry::ID_AIR;
+                }
+                else {
+                    const bool isCave = isCaveAt(wx, y, wz) && (y < surfaceHeight - caveBuffer) && (y > 8);
+
+                    blockID = getBlockType(y, surfaceHeight, isCave);
                 }
 
                 chunk.setBlock(x, y, z, blockID);
             }
-
-            for (int y = minY - 1; y >= 1; --y) {
-                chunk.setBlock(x, y, z, blockregistry::ID_STONE);
-            }
-
-            chunk.setBlock(x, 0, z, blockregistry::ID_BEDROCK);
         }
     }
 

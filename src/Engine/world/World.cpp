@@ -1,7 +1,7 @@
 #include "World.h"
 
-#include <fstream>
-
+#include "Engine/chunkio/ChunkSerialiser.h"
+#include "Engine/chunkio/RegionFile.h"
 #include "Engine/config/SettingsManager.h"
 #include "Engine/rendering/Rendering.h"
 #include "Engine/ui/UIManager.h"
@@ -9,8 +9,7 @@
 namespace engine::world {
 
 World::World()
-    : m_ThreadPool(std::max(1u, std::thread::hardware_concurrency() - 1)),
-      m_WorldGen(config::LevelData::get().getSeed()) {}
+    : m_ThreadPool(std::max(1u, std::thread::hardware_concurrency() - 1)) {}
 
 NeighborChunks World::getNeighborSnapshot(const int cx, const int cz) const {
     std::shared_lock lock(m_ChunksMutex);
@@ -23,82 +22,67 @@ NeighborChunks World::getNeighborSnapshot(const int cx, const int cz) const {
     };
 }
 
-void World::saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk)
-{
+void World::saveChunk(const int cx, const int cz, const rendering::ChunkRendering* chunk) {
     if (!chunk->isModified()) return;
 
-    std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
-
+    const std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
     if (currentWorldName.empty()) return;
 
-    const std::filesystem::path worldDir {config::SettingsManager::getSaveDirectory() / "saves" / currentWorldName / "world"};
-    std::filesystem::create_directories(worldDir);
+    const std::filesystem::path worldDir {config::SettingsManager::getSaveDirectory() / "saves" / currentWorldName};
 
-    const auto targetFile {worldDir / std::format("chunk_{}_{}.dat", cx, cz)};
-    const auto tempFile {worldDir / std::format("chunk_{}_{}.tmp", cx, cz)};
+    const int regionX = std::floor(static_cast<float>(cx) / 32.0f);
+    const int regionZ = std::floor(static_cast<float>(cz) / 32.0f);
 
-    bool writeSuccess {false};
+    const auto serialized = chunkio::ChunkSerializer::serialize(*chunk);
 
-    {
-        std::ofstream out(tempFile, std::ios::binary);
-        if (!out) return;
+    const chunkio::RegionFile regionFile(regionX, regionZ, worldDir.string());
+    regionFile.writeChunk(cx, cz, serialized);
 
-        ChunkHeader header{
-            .magic = CHUNK_FILE_MAGIC,
-            .version = CHUNK_FILE_VERSION,
-            .dataSize = sizeof(chunk->getBlockIDs())
-        };
-
-        out.write(reinterpret_cast<const char*>(&header), sizeof(header));
-        out.write(reinterpret_cast<const char*>(chunk->getBlockIDs().data()), sizeof(chunk->getBlockIDs()));
-        writeSuccess = out.good();
-    }
-
-    if (writeSuccess) {
-        std::filesystem::rename(tempFile, targetFile);
-        const_cast<rendering::ChunkRendering*>(chunk)->clearModified();
-    } else if (std::filesystem::exists(tempFile)) {
-        std::filesystem::remove(tempFile);
-    }
+    const_cast<rendering::ChunkRendering*>(chunk)->clearModified();
 }
-bool World::loadChunk(int cx, int cz, rendering::ChunkRendering* chunk) {
 
-    std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
-
+bool World::loadChunk(const int cx, const int cz, rendering::ChunkRendering* chunk) {
+    const std::string currentWorldName {config::LevelData::get().getCurrentWorldName()};
     if (currentWorldName.empty()) return false;
 
-    const auto filename {config::SettingsManager::getSaveDirectory() / "saves" / currentWorldName / "world" /
-        std::format("chunk_{}_{}.dat", cx, cz)};
+    const std::filesystem::path worldDir {config::SettingsManager::getSaveDirectory() / "saves" / currentWorldName};
 
-    if (!std::filesystem::exists(filename)) return false;
+    const int regionX = std::floor(static_cast<float>(cx) / 32.0f);
+    const int regionZ = std::floor(static_cast<float>(cz) / 32.0f);
 
-    std::ifstream in(filename, std::ios::binary);
-    if (!in) return false;
+    const chunkio::RegionFile regionFile(regionX, regionZ, worldDir.string());
 
-    ChunkHeader header{};
-    in.read(reinterpret_cast<char*>(&header), sizeof(header));
-
-    if (header.magic != CHUNK_FILE_MAGIC ||
-        header.version != CHUNK_FILE_VERSION ||
-        header.dataSize != sizeof(chunk->getBlockIDs())) {
+    const auto serializedOpt = regionFile.readChunk(cx, cz);
+    if (!serializedOpt.has_value()) {
         return false;
-        }
-
-    in.read(reinterpret_cast<char*>(chunk->getBlockIDs().data()), sizeof(chunk->getBlockIDs()));
-
-    if (in) {
-        chunk->makeDirty();
-        chunk->clearModified();
-        return true;
     }
 
-    return static_cast<bool>(in);
+    chunkio::ChunkSerializer::deserialize(*chunk, serializedOpt.value());
+
+    chunk->makeDirty();
+    chunk->clearModified();
+    return true;
 }
 
 void World::saveAllChunks() {
     for (const auto& chunk : m_Chunks | std::views::values) {
         saveChunk(chunk->getChunkX(), chunk->getChunkZ(), chunk.get());
     }
+}
+
+    void World::switchToWorld(const std::string& newWorldName) {
+    saveAllChunks();
+
+    {
+        std::unique_lock lock(m_ChunksMutex);
+        m_Chunks.clear();
+    }
+
+    m_GeneratingChunkKeys.clear();
+    m_PendingMeshKeys.clear();
+
+    config::LevelData::get().setCurrentWorldName(newWorldName);
+    config::LevelData::get().loadLevel();
 }
 
 const rendering::ChunkRendering* World::getChunk(const int chunkX, const int chunkZ) const {
@@ -265,7 +249,7 @@ void World::update(const glm::vec3& playerPos) {
             m_Chunks[key] = std::move(generatedChunk);
         }
 
-        worldgen::WorldGen::generateTrees(*rawChunk, *this);
+        m_WorldGen.generateTrees(*rawChunk, *this);
 
         m_GeneratingChunkKeys.erase(key);
         rawChunk->makeDirty();
@@ -279,6 +263,7 @@ void World::update(const glm::vec3& playerPos) {
         std::shared_lock lock(m_ChunksMutex);
         if (auto it = m_Chunks.find(key); it != m_Chunks.end()) {
             it->second->uploadSectionGPU(meshData.subY, meshData.vertices);
+            it->second->incrementMeshedSection();
         }
 
         const uint64_t subKey = getChunkKey(meshData.chunkX, meshData.subY, meshData.chunkZ);
@@ -288,6 +273,30 @@ void World::update(const glm::vec3& playerPos) {
     const int playerChunkX = toChunkCoord(static_cast<int>(std::floor(playerPos.x)));
     const int playerChunkZ = toChunkCoord(static_cast<int>(std::floor(playerPos.z)));
     const int renderDistance = config::SettingsManager::get().getRenderDistance();
+
+    const int unloadDistance = renderDistance + 4;
+    const int unloadDistSq = unloadDistance * unloadDistance;
+    std::vector<uint64_t> chunksToUnload;
+
+    {
+        std::shared_lock lock(m_ChunksMutex);
+        for (const auto& [key, chunk] : m_Chunks) {
+            const int dx = chunk->getChunkX() - playerChunkX;
+            if (const int dz = chunk->getChunkZ() - playerChunkZ; (dx * dx + dz * dz) > unloadDistSq) {
+                chunksToUnload.push_back(key);
+            }
+        }
+    }
+
+    if (!chunksToUnload.empty()) {
+        std::unique_lock lock(m_ChunksMutex);
+        for (const uint64_t key : chunksToUnload) {
+            if (auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+                saveChunk(it->second->getChunkX(), it->second->getChunkZ(), it->second.get());
+                m_Chunks.erase(it);
+            }
+        }
+    }
 
     const int genDistance = renderDistance + 2;
 
@@ -317,10 +326,13 @@ void World::update(const glm::vec3& playerPos) {
     for (const auto& req : requests) {
         const uint64_t key = getChunkKey(req.cx, req.cz);
         m_GeneratingChunkKeys.insert(key);
-        m_ThreadPool.enqueue([this, cx = req.cx, cz = req.cz]() {
+        m_ThreadPool.enqueue([this, cx = req.cx, cz = req.cz]
+        {
             auto chunk = std::make_unique<rendering::ChunkRendering>(cx, cz);
             if (!loadChunk(cx, cz, chunk.get())) {
-                m_WorldGen.generateChunkData(*chunk);
+                const int64_t activeSeed = config::LevelData::get().getSeed();
+                const worldgen::WorldGen worldGen(activeSeed);
+                worldGen.generateChunkData(*chunk);
             }
             m_CompletedGenQueue.push(std::move(chunk));
         });
@@ -399,4 +411,24 @@ void World::render(const shaders::Shader& shader, const glm::mat4& viewProjectio
     glBindVertexArray(0);
 }
 
+float World::getSpawnLoadProgress(const glm::vec3& playerPos, const int radius) const {
+    const int playerChunkX = toChunkCoord(static_cast<int>(std::floor(playerPos.x)));
+    const int playerChunkZ = toChunkCoord(static_cast<int>(std::floor(playerPos.z)));
+
+    const int totalChunks = (2 * radius + 1) * (2 * radius + 1);
+    int readyCount = 0;
+
+    std::shared_lock lock(m_ChunksMutex);
+    for (int dx = -radius; dx <= radius; ++dx) {
+        for (int dz = -radius; dz <= radius; ++dz) {
+            const uint64_t key = getChunkKey(playerChunkX + dx, playerChunkZ + dz);
+
+            if (auto it = m_Chunks.find(key); it != m_Chunks.end() && it->second && it->second->isFullyMeshed()) {
+                readyCount++;
+            }
+        }
+    }
+
+    return static_cast<float>(readyCount) / static_cast<float>(totalChunks);
+}
 }

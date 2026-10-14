@@ -37,7 +37,6 @@ class World {
     util::ThreadPool m_ThreadPool;
     mutable std::shared_mutex m_ChunksMutex;
     std::unordered_map<uint64_t, std::unique_ptr<rendering::ChunkRendering>> m_Chunks;
-    worldgen::WorldGen m_WorldGen;
     std::chrono::high_resolution_clock::time_point m_lastFrameTime{ std::chrono::high_resolution_clock::now() };
     static constexpr uint32_t CHUNK_FILE_MAGIC {0x564F584C};
     static constexpr uint16_t CHUNK_FILE_VERSION {1};
@@ -47,6 +46,8 @@ class World {
         uint16_t version{CHUNK_FILE_VERSION};
         uint32_t dataSize{0};
     };
+
+    worldgen::WorldGen m_WorldGen;
 
     [[nodiscard]] const rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkZ) const;
     [[nodiscard]] rendering::ChunkRendering* getChunkUnlocked(int chunkX, int chunkZ);
@@ -101,6 +102,9 @@ public:
 
     void update(const glm::vec3& playerPos);
     void render(const shaders::Shader& shader, const glm::mat4& viewProjection);
+
+    void switchToWorld(const std::string& newWorldName);
+    float getSpawnLoadProgress(const glm::vec3& playerPos, int radius) const;
 
     static void saveChunk(int cx, int cz, const rendering::ChunkRendering* chunk);
     static bool loadChunk(int cx, int cz, rendering::ChunkRendering* chunk);

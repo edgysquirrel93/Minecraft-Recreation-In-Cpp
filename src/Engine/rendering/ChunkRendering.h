@@ -1,5 +1,7 @@
 #ifndef MINECRAFT_RECREATION_RECREATION_CHUNKRENDER_H
 #define MINECRAFT_RECREATION_RECREATION_CHUNKRENDER_H
+#include <atomic>
+
 #include "../block/Block.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include <vector>
@@ -29,6 +31,8 @@ class ChunkRendering {
         { 0, -1,  0}, // Bottom -Y
         { 0,  1,  0}  // Top +Y
     };
+
+    std::atomic<int> m_MeshedSectionsCount{0};
 
     GLuint m_ChunkVAO {0}, m_ChunkVBO {0};
 
@@ -69,6 +73,8 @@ public:
     [[nodiscard]] BoundingBox getSubChunkBoundingBox(int subY) const noexcept;
 
     [[nodiscard]] ChunkMeshData buildSectionMeshDataCPU(const world::NeighborChunks& neighbors, int subY) const;
+    void incrementMeshedSection() { ++m_MeshedSectionsCount; }
+    [[nodiscard]] bool isFullyMeshed() const { return m_MeshedSectionsCount >= 16; }
     void uploadSectionGPU(int subY, const std::vector<PackedVertex>& vertices);
     static void addFaceVertices(std::vector<PackedVertex>& vertices, int lx, int ly, int lz,
         int face, const block::BlockType& block);

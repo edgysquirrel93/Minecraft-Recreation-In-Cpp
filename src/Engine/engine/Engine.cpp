@@ -40,12 +40,14 @@ void Engine::gameLoop()
 
         ui::UIManager::update();
 
-        if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame)
-        {
+        if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame ||
+            ui::UIManager::getCurrentScreen() == ui::ScreenState::LoadingScreen)
+        { m_Rendering.getWorld().update(config::LevelData::get().getCameraPos()); }
+
+        if (ui::UIManager::getCurrentScreen() == ui::ScreenState::InGame) {
             const float frameTime {std::min(deltaTime, 0.1f)};
             input::Input::processInput(window);
             input::Player::processMovement(window, frameTime);
-            m_Rendering.getWorld().update(config::LevelData::get().getCameraPos());
             glEnable(GL_DEPTH_TEST);
             m_Rendering.gameRender(*m_ShaderManager, window);
         }

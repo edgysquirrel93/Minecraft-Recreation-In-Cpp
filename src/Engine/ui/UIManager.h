@@ -20,6 +20,7 @@ enum class ScreenState {
     CreateNewWorldScreen,
     MoreWorldOptionsScreen,
     PauseMenuScreen,
+    LoadingScreen
 };
 
 // enum class ModalScreen {
@@ -49,6 +50,8 @@ class UIManager {
     inline static bool s_RenameInitReq;
     inline static std::string s_SeedStringInput;
     inline static bool s_SeedInput {false};
+    inline static bool s_NewWorld {false};
+    inline static float s_LoadingProgress {0.0f};
 
     // UI Sizes
     inline static float s_Scale {1.0f};
@@ -76,6 +79,7 @@ class UIManager {
     static void drawCreateNewWorldScreen();
     static void drawMoreWorldOptionsScreen();
     static void drawPauseMenuScreen();
+    static void drawLoadingScreen();
 
     // overlays
     static void drawDebugMenuScreen();

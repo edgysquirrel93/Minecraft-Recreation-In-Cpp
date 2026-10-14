@@ -143,6 +143,10 @@ add_executable(Minecraft_Recreation_Recreation
         src/Engine/util/ThreadPool.h
         src/Engine/util/ConcurrentQueue.h
         src/Engine/rendering/Frustum.h
+        src/Engine/chunkio/ChunkSerialiser.cpp
+        src/Engine/chunkio/ChunkSerialiser.h
+        src/Engine/chunkio/RegionFile.cpp
+        src/Engine/chunkio/RegionFile.h
 )
 target_include_directories(Minecraft_Recreation_Recreation PRIVATE
         src
@@ -154,6 +158,7 @@ target_include_directories(Minecraft_Recreation_Recreation PRIVATE
 )
 
 find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
 
 target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
         glfw
@@ -164,6 +169,7 @@ target_link_libraries(Minecraft_Recreation_Recreation PRIVATE
         stb_image
         perlin_noise
         Threads::Threads
+        ZLIB::ZLIB
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
