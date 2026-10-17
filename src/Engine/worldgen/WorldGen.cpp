@@ -194,7 +194,7 @@ void WorldGen::generateChunkData(rendering::ChunkRendering& chunk) const {
             const int surfaceHeight = static_cast<int>(std::round(surfaceHeightDbl));
 
             const double surfaceOpenNoise = m_Perlin.octave2D_11(wx * 0.03, wz * 0.03, 2);
-            const bool allowSurfaceOpening = (surfaceOpenNoise > 0.65);
+            const bool allowSurfaceOpening = (surfaceOpenNoise > 0.45);
 
             const int caveBuffer = allowSurfaceOpening ? 0 : 3;
 

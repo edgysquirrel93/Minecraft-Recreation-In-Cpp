@@ -765,9 +765,11 @@ void UIManager::drawOptionsScreen()
         &musicVolume, 0.0f, 100.0f)) {
         config::SettingsManager::get().setMusicVolume(musicVolume);
 
-        const float volumeNormalized {musicVolume / 100.0f};
+        const float linearNormalised {musicVolume / 100.0f};
 
-        ma_sound_group_set_volume(sound::Sound::get().getMusicGroup(), volumeNormalized);
+        const float perceptualVolume {linearNormalised * linearNormalised};
+
+        ma_sound_group_set_volume(sound::Sound::get().getMusicGroup(), perceptualVolume);
     }
 
     char soundDisplay[64];
@@ -782,9 +784,11 @@ void UIManager::drawOptionsScreen()
         &soundVolume, 0.0f, 100.0f)) {
         config::SettingsManager::get().setSoundEffects(soundVolume);
 
-        const float volumeNormalized {soundVolume / 100.0f};
+        const float linearNormalised {soundVolume / 100.0f};
 
-        ma_sound_group_set_volume(sound::Sound::get().getSFXGroup(), volumeNormalized);
+        const float perceptualVolume {linearNormalised * linearNormalised};
+
+        ma_sound_group_set_volume(sound::Sound::get().getSFXGroup(), perceptualVolume);
         }
 
     float baseFov = config::SettingsManager::get().getBaseFov();
@@ -1335,6 +1339,16 @@ void UIManager::drawLoadingScreen() {
                 config::LevelData::get().setCameraPos(playerHeight);
                 s_NewWorld = false;
             }
+
+            const auto& levelData = config::LevelData::get();
+            if (sound::Sound::get().getEngine()) {
+                if (levelData.getCreativeModeBool()) {
+                    sound::Sound::get().playPlaylist("creative");
+                } else {
+                    sound::Sound::get().playPlaylist("survival");
+                }
+            }
+
             s_CurrentScreen = ScreenState::InGame;
             input::Input::enterGameInputMode(s_GlfwWindow);
             toggleOverlay(Hotbar);
@@ -1473,11 +1487,11 @@ void UIManager::drawHotbar(int& activeSlot) {
     constexpr float baseHeight = 22.0f;
     constexpr float scale = 3.0f;
 
-    const float barWidth = baseWidth * scale * s_Scale;
-    const float barHeight = baseHeight * scale * s_Scale;
+    const float barWidth = std::round(baseWidth * scale * s_Scale);
+    const float barHeight = std::round(baseHeight * scale * s_Scale);
 
     const float startX = (viewport->Size.x - barWidth) * 0.5f;
-    const float startY = viewport->Size.y - barHeight - 16.0f;
+    const float startY = viewport->Size.y - barHeight;
 
     ImGui::SetNextWindowPos(ImVec2(startX, startY));
     ImGui::SetNextWindowSize(ImVec2(barWidth, barHeight));
@@ -1509,8 +1523,8 @@ void UIManager::drawHotbar(int& activeSlot) {
     const float offsetX = 1.25f * scale * s_Scale;
     const float offsetY = 1.5f * scale * s_Scale;
 
-    const float selWidth = 24.0f * scale * s_Scale;
-    const float selHeight = 23.0f * scale * s_Scale;
+    const float selWidth = std::round(24.0f * scale * s_Scale);
+    const float selHeight = std::round(23.0f * scale * s_Scale);
 
     const ImVec2 windowPos = ImGui::GetWindowPos();
     const ImVec2 selMin(windowPos.x + slotX - offsetX, windowPos.y + slotY - offsetY);

@@ -282,7 +282,16 @@ void Player::processMovement(GLFWwindow* window, const float deltaTime) {
 
     if (cIsDown && !cPressed) {
         auto& levelData = config::LevelData::get();
-        levelData.setCreativeModeBool(!levelData.getCreativeModeBool());
+        const bool creativeMode = !levelData.getCreativeModeBool();
+        levelData.setCreativeModeBool(creativeMode);
+
+        if (sound::Sound::get().getEngine()) {
+            if (creativeMode) {
+                sound::Sound::get().playPlaylist("creative");
+            } else {
+                sound::Sound::get().playPlaylist("survival");
+            }
+        }
     }
 
     cPressed = cIsDown;

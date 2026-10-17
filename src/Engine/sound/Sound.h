@@ -21,9 +21,16 @@ class Sound {
     bool m_IsMusicPlaying;
     bool m_IsWaitingForNextSong;
     float m_SilenceTimer;
+    bool m_IsTrackLoaded{false};
+    bool m_MusicInitialized{false};
+    bool m_ClickInitialized{false};
 
     std::vector<std::string> m_CurrentPlaylist;
     int m_CurrentIndex;
+
+    std::string m_ActivePlaylistName;
+    std::string m_QueuedPlaylistName;
+    bool m_HasQueuedPlaylist{false};
 
     void playNextTrack();
 public:
@@ -35,7 +42,8 @@ public:
     ma_sound_group* getMusicGroup() { return &m_MusicGroup; }
     ma_sound_group* getSFXGroup() { return &m_SFXGroup; }
 
-    void playClickSound() { ma_sound_seek_to_pcm_frame(&m_ClickSound, 0); ma_sound_start(&m_ClickSound); }
+    void playClickSound() { ma_sound_stop(&m_ClickSound); ma_sound_seek_to_pcm_frame(&m_ClickSound, 0);
+        ma_sound_start(&m_ClickSound); }
 
     void init();
     static void playlistGen();

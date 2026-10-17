@@ -118,13 +118,22 @@ void Sound::init() {
     ma_sound_group_init(&m_AudioEngine, 0, nullptr, &m_SFXGroup);
     m_Initialised = true;
 
-    ma_sound_init_from_file(&m_AudioEngine, "assets/Sound/SoundEffects/click.wav", 0,
-        &m_SFXGroup, nullptr, &m_ClickSound);
+    const ma_result clickResult = ma_sound_init_from_file(
+            &m_AudioEngine, "assets/Sound/SoundEffects/Click.wav", 0,
+            &m_SFXGroup, nullptr, &m_ClickSound
+        );
+    m_ClickInitialized = (clickResult == MA_SUCCESS);
 
     if (config::SettingsManager::get().getMusicVolume() <= 0)
         ma_sound_group_set_volume(&m_MusicGroup, 0);
     else if (config::SettingsManager::get().getSoundEffects() <= 0)
         ma_sound_group_set_volume(&m_SFXGroup, 0);
+
+    const float rawMusicVol = config::SettingsManager::get().getMusicVolume() / 100.0f;
+    ma_sound_group_set_volume(&m_MusicGroup, rawMusicVol * rawMusicVol);
+
+    const float rawSfxVol = config::SettingsManager::get().getSoundEffects() / 100.0f;
+    ma_sound_group_set_volume(&m_SFXGroup, rawSfxVol * rawSfxVol);
 
     playlistGen();
 
@@ -140,14 +149,24 @@ void Sound::init() {
     playPlaylist("menu");
 }
 
+// Music
+
 void Sound::playPlaylist(const std::string& playlist) {
     if (!m_Playlists.contains(playlist)) {
         std::cerr << "Playlist not found: " << playlist << std::endl;
         return;
     }
 
-    stopAll();
+    if (m_IsMusicPlaying) {
+        m_QueuedPlaylistName = playlist;
+        m_HasQueuedPlaylist = true;
+        std::cout << "[Sound] Music is currently playing. Queued switch to '" << playlist << "' for after the silence timer." << std::endl;
+        return;
+    }
 
+    std::cout << "[Sound] No music playing. Starting playlist '" << playlist << "' immediately." << std::endl;
+
+    m_ActivePlaylistName = playlist;
     m_CurrentPlaylist = m_Playlists[playlist];
 
     std::random_device rd;
@@ -160,6 +179,20 @@ void Sound::playPlaylist(const std::string& playlist) {
 
 void Sound::playNextTrack()
 {
+
+    if (m_HasQueuedPlaylist) {
+        m_ActivePlaylistName = m_QueuedPlaylistName;
+        m_CurrentPlaylist = m_Playlists[m_ActivePlaylistName];
+
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::ranges::shuffle(m_CurrentPlaylist, g);
+
+        m_CurrentIndex = 0;
+        m_HasQueuedPlaylist = false;
+        std::cout << "[Sound] Switched active playlist to: " << m_ActivePlaylistName << std::endl;
+    }
+
     if (m_CurrentPlaylist.empty()) return;
 
     stopAll();
@@ -173,7 +206,7 @@ void Sound::playNextTrack()
     const ma_result result = ma_sound_init_from_file(
         &m_AudioEngine,
         trackPath.c_str(),
-        MA_SOUND_FLAG_STREAM,
+        MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION,
         &m_MusicGroup,
         nullptr,
         &m_CurrentMusic
@@ -182,6 +215,8 @@ void Sound::playNextTrack()
     if (result == MA_SUCCESS) {
         ma_sound_start(&m_CurrentMusic);
         m_IsMusicPlaying = true;
+        m_MusicInitialized = true;
+        m_IsTrackLoaded = true;
         m_CurrentIndex++;
 
         ma_sound_set_end_callback(&m_CurrentMusic, [](void* pUserData, ma_sound*) {
@@ -192,18 +227,19 @@ void Sound::playNextTrack()
         std::cerr << "Failed to play music track: " << trackPath << std::endl;
         m_CurrentIndex++;
         m_IsMusicPlaying = false;
+        m_MusicInitialized = false;
         m_IsWaitingForNextSong = true;
         m_SilenceTimer = 5.0f;
     }
 }
 
 void Sound::update(const float deltaTime) {
-    if (!m_IsMusicPlaying && !m_IsWaitingForNextSong && !m_CurrentActiveTracks.empty()) {
+    if (!m_IsMusicPlaying && !m_IsWaitingForNextSong) {
         m_IsWaitingForNextSong = true;
         std::random_device rd;
         std::mt19937 gen(rd());
 
-        std::uniform_real_distribution dis(600.0f, 1200.0f);
+        std::uniform_real_distribution dis(30.0f, 120.0f);
 
         m_SilenceTimer = dis(gen);
 
@@ -221,17 +257,27 @@ void Sound::update(const float deltaTime) {
 }
 
 void Sound::stopAll() {
-    if (m_IsMusicPlaying) {
+    if (m_IsMusicPlaying || m_MusicInitialized) {
         ma_sound_stop(&m_CurrentMusic);
         ma_sound_uninit(&m_CurrentMusic);
         m_IsMusicPlaying = false;
+        m_MusicInitialized = false;
+        m_IsTrackLoaded = false;
     }
 }
 
 void Sound::shutdown(){
     if (m_Initialised) {
+        ma_engine_stop(&m_AudioEngine);
         stopAll();
+
+        if (m_ClickInitialized) {
+            ma_sound_uninit(&m_ClickSound);
+            m_ClickInitialized = false;
+        }
+
         ma_sound_group_uninit(&m_MusicGroup);
+        ma_sound_group_uninit(&m_SFXGroup);
         ma_engine_uninit(&m_AudioEngine);
         m_Initialised = false;
     }
